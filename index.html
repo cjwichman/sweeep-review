@@ -98,8 +98,9 @@ main{display:grid;grid-template-columns:330px 1fr;min-height:0}
 .rail-row[aria-current=true]{background:var(--paper);
   box-shadow:inset 3px 0 0 var(--gold)}
 .rail-n{font-family:var(--mono);font-size:11px;color:var(--grey)}
-.rail-t{font-size:13px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rail-t{font-size:13px;line-height:1.3;overflow:hidden}
+.rail-t>b{display:block;font-weight:400;font-size:11.5px;color:var(--grey);
+  margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* five-cell score ladder */
 .ladder{display:flex;gap:2px}
 .ladder i{width:4px;height:15px;background:var(--rule);display:block}
@@ -115,6 +116,10 @@ main{display:grid;grid-template-columns:330px 1fr;min-height:0}
 h2{font-family:var(--serif);font-size:28px;line-height:1.22;font-weight:600;
   letter-spacing:-.012em;margin:0 0 10px;color:var(--navy)}
 .byline{font-size:13px;color:var(--grey);margin-bottom:24px}
+.bl{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:3px 0;
+  align-items:baseline}
+.bl-k{font-family:var(--cond);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--gold-dark)}
 .byline b{color:var(--navy-deep);font-weight:500}
 .tag{display:inline-block;margin-top:6px;font-family:var(--cond);font-size:11px;
   letter-spacing:.06em;text-transform:uppercase;color:var(--gold-dark);
@@ -138,21 +143,6 @@ textarea{width:100%;min-height:104px;padding:11px 13px;border:1px solid var(--ru
 textarea:focus{border-color:var(--navy);outline:none}
 .save-state{font-family:var(--mono);font-size:11px;color:var(--grey);height:16px;
   margin-top:6px}
-
-/* ------------------------------------------------------------- discussion */
-.thread{margin-top:34px;border-top:2px solid var(--gold);padding-top:18px}
-.msg{padding:11px 0;border-bottom:1px solid var(--rule)}
-.msg-head{display:flex;gap:10px;align-items:baseline;margin-bottom:3px}
-.msg-who{font-weight:500;font-size:13px}
-.msg-when{font-family:var(--mono);font-size:11px;color:var(--grey)}
-.msg-del{margin-left:auto;border:none;background:none;font-size:11px;
-  color:var(--grey);text-decoration:underline;padding:0}
-.msg-body{font-size:14px;line-height:1.55;white-space:pre-wrap}
-.thread-empty{font-size:13px;color:var(--grey);padding:8px 0 14px}
-#post{min-height:70px}
-.post-row{display:flex;justify-content:flex-end;margin-top:8px}
-.post-row .btn{width:auto;margin:0;padding:8px 18px}
-.locked-note{font-size:12px;color:var(--grey);margin-top:10px}
 
 .others{margin-top:30px;border-top:1px solid var(--rule);padding-top:16px}
 .others table{width:100%;border-collapse:collapse;font-size:13px}
@@ -198,6 +188,12 @@ dialog{border:1px solid var(--rule);border-top:4px solid var(--gold);padding:0;
 dialog::backdrop{background:rgba(0,34,51,.45)}
 .dlg{padding:26px}
 .dlg h3{margin:0 0 14px;font-size:17px;color:var(--navy)}
+ol.howto{margin:0 0 20px;padding-left:20px;font-size:13.5px;line-height:1.55;
+  color:var(--navy-deep)}
+ol.howto li{margin-bottom:9px;padding-left:3px}
+ol.howto li::marker{color:var(--gold-dark);font-family:var(--mono);font-size:12px}
+kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
+  border-bottom-width:2px;padding:0 4px;background:var(--paper)}
 .dlg p{font-size:13px;color:var(--grey);margin:0 0 18px}
 .dlg .ghost{width:100%;padding:10px;margin-top:8px;color:var(--grey);
   border-color:var(--rule);text-align:center}
@@ -248,6 +244,7 @@ dialog::backdrop{background:rgba(0,34,51,.45)}
     <span class="meter" id="meter"></span>
     <a class="ghost" id="dash-link" href="dashboard.html" hidden>Dashboard</a>
     <button class="ghost" id="admin-open" hidden>Admin</button>
+    <button class="ghost" id="help">?</button>
     <button class="ghost" id="signout">Sign out</button>
   </header>
   <main id="main">
@@ -255,6 +252,27 @@ dialog::backdrop{background:rgba(0,34,51,.45)}
     <section class="pane" id="pane"></section>
   </main>
 </div>
+
+<dialog id="howto">
+  <div class="dlg">
+    <h3>How this works</h3>
+    <ol class="howto">
+      <li>Read each abstract and give it a score from 1 to 5. Press the number
+        keys, or click. Pressing the same number again clears the score.</li>
+      <li>Move between abstracts with <kbd>j</kbd> and <kbd>k</kbd>, the arrow
+        keys, or the list on the left.</li>
+      <li>Notes are optional and go to the organizer. Press <kbd>c</kbd> to jump
+        to the box.</li>
+      <li>Full talks and egg-timers are scored separately. Use the tabs at the
+        top to switch, and score everything in both.</li>
+      <li>My list shows your scored abstracts in order. Dragging rows to rank
+        them is optional and helps break ties.</li>
+      <li>Everything saves as you go. Come back any time, and scores can be
+        changed until scoring closes.</li>
+    </ol>
+    <button class="btn" id="howto-close">Start</button>
+  </div>
+</dialog>
 
 <dialog id="admin">
   <div class="dlg">
@@ -272,7 +290,7 @@ import { sb, REVIEWERS, TRACK_LABEL, esc } from './config.js';
 const state = {
   me: null, isAdmin: false, unlocked: false,
   abstracts: [], mine: new Map(), others: new Map(),
-  thread: new Map(), names: new Map(),
+  names: new Map(),
   track: 'full', cursor: 0, view: 'read',
 };
 
@@ -326,12 +344,11 @@ async function start(session) {
 
   $('app').classList.add('on');
 
-  const [roster, settings, abstracts, reviews, thread] = await Promise.all([
+  const [roster, settings, abstracts, reviews] = await Promise.all([
     sb.from('reviewers').select('id, display_name, is_admin'),
     sb.from('app_settings').select('reviews_visible').eq('id', 1).maybeSingle(),
     sb.from('abstracts').select('*').order('track').order('id'),
     sb.from('reviews').select('*'),
-    sb.from('discussion').select('*').order('created_at'),
   ]);
 
   if (abstracts.error || !(abstracts.data ?? []).length) {
@@ -354,9 +371,11 @@ async function start(session) {
       state.others.get(r.abstract_id).push(r);
     }
   }
-  for (const m of thread.data ?? []) {
-    if (!state.thread.has(m.abstract_id)) state.thread.set(m.abstract_id, []);
-    state.thread.get(m.abstract_id).push(m);
+
+  // Shown once per browser, and any time afterwards from the ? button.
+  if (!localStorage.getItem('sweeep-howto-seen')) {
+    $('howto').showModal();
+    localStorage.setItem('sweeep-howto-seen', '1');
   }
 
   if (state.isAdmin) { $('admin-open').hidden = false; $('dash-link').hidden = false; }
@@ -538,7 +557,7 @@ function renderRail() {
       .map(n => `<i class="${score >= n ? 'on' : ''}"></i>`).join('');
     return `<button class="rail-row" data-i="${i}" aria-current="${i === state.cursor}">
       <span class="rail-n">${String(i + 1).padStart(3, '0')}</span>
-      <span class="rail-t">${esc(a.title)}</span>
+      <span class="rail-t">${esc(a.title)}<b>${esc(a.submitter)}</b></span>
       <span class="ladder ${score ? 'set' : 'unset'}">${cells}</span>
     </button>`;
   }).join('');
@@ -554,8 +573,6 @@ function renderPane() {
 
   const mine = state.mine.get(a.id) ?? {};
   const peers = state.unlocked ? (state.others.get(a.id) ?? []) : [];
-  const msgs = (state.thread.get(a.id) ?? [])
-    .filter(m => state.unlocked || state.isAdmin || m.author_id === state.me);
 
   pane.innerHTML = `<div class="pane-inner">
     <div class="eyebrow">
@@ -565,11 +582,12 @@ function renderPane() {
     </div>
     <h2>${esc(a.title)}</h2>
     <div class="byline">
-      <b>${esc(a.submitter)}</b>${a.affiliation ? ' &middot; ' + esc(a.affiliation) : ''}
-      ${a.role ? ' &middot; ' + esc(a.role) : ''}
-      ${a.coauthors ? '<br>' + esc(a.coauthors) : ''}
+      <div class="bl"><span class="bl-k">Submitted by</span>
+        <span><b>${esc(a.submitter)}</b>${a.affiliation ? ', ' + esc(a.affiliation) : ''}${a.role ? ' &middot; ' + esc(a.role) : ''}</span></div>
+      ${a.coauthors ? `<div class="bl"><span class="bl-k">Authors</span>
+        <span>${esc(a.coauthors)}</span></div>` : ''}
       ${a.track === 'full' && a.eggtimer_ok
-        ? '<br><span class="tag">Accepts egg-timer if not given a full slot</span>' : ''}
+        ? '<span class="tag">Accepts egg-timer if not given a full slot</span>' : ''}
     </div>
     <div class="body">${esc(a.body)}</div>
     <hr>
@@ -578,8 +596,8 @@ function renderPane() {
       ${[1, 2, 3, 4, 5].map(n =>
         `<button class="score" data-n="${n}" aria-pressed="${mine.score === n}">${n}</button>`).join('')}
     </div>
-    <div class="field-label">Private note <span class="hint">press c</span></div>
-    <textarea id="comment" placeholder="Visible only to the organizer until reviews are revealed.">${esc(mine.comment)}</textarea>
+    <div class="field-label">Notes <span class="hint">press c</span></div>
+    <textarea id="comment" placeholder="Seen by the organizer. Shared with the committee after the reveal.">${esc(mine.comment)}</textarea>
     <div class="save-state" id="save-state"></div>
     ${peers.length ? `<div class="others">
       <div class="field-label">Other reviewers</div>
@@ -588,32 +606,11 @@ function renderPane() {
         <td>${p.score ?? '&mdash;'}</td>
         <td>${esc(p.comment)}</td></tr>`).join('')}</table>
     </div>` : ''}
-    <div class="thread">
-      <div class="field-label">Discussion</div>
-      ${msgs.length
-        ? msgs.map(m => `<div class="msg">
-            <div class="msg-head">
-              <span class="msg-who">${esc(state.names.get(m.author_id) ?? 'Reviewer')}</span>
-              <span class="msg-when">${when(m.created_at)}</span>
-              ${(m.author_id === state.me || state.isAdmin)
-                ? `<button class="msg-del" data-del="${m.id}">Delete</button>` : ''}
-            </div>
-            <div class="msg-body">${esc(m.body)}</div>
-          </div>`).join('')
-        : '<div class="thread-empty">No comments yet.</div>'}
-      <textarea id="post" placeholder="Add a comment for the committee."></textarea>
-      <div class="post-row"><button class="btn" id="post-btn">Post comment</button></div>
-      ${state.unlocked ? '' :
-        '<div class="locked-note">Comments stay hidden from other reviewers until scoring is revealed.</div>'}
-    </div>
   </div>`;
 
   pane.querySelectorAll('.score').forEach(b =>
     b.addEventListener('click', () => setScore(+b.dataset.n)));
   $('comment').addEventListener('input', queueComment);
-  $('post-btn').addEventListener('click', postComment);
-  pane.querySelectorAll('[data-del]').forEach(b =>
-    b.addEventListener('click', () => deleteComment(+b.dataset.del)));
   pane.scrollTop = 0;
 }
 
@@ -661,29 +658,6 @@ function queueComment() {
 
 function flash(msg) { const el = $('save-state'); if (el) el.textContent = msg; }
 
-async function postComment() {
-  const body = $('post').value.trim();
-  if (!body) return;
-  const a = current();
-  $('post-btn').disabled = true;
-  const { data, error } = await sb.from('discussion')
-    .insert({ abstract_id: a.id, author_id: state.me, body })
-    .select().single();
-  $('post-btn').disabled = false;
-  if (error) { flash('Comment not posted. ' + error.message); return; }
-  if (!state.thread.has(a.id)) state.thread.set(a.id, []);
-  state.thread.get(a.id).push(data);
-  renderPane();
-}
-
-async function deleteComment(id) {
-  const a = current();
-  const { error } = await sb.from('discussion').delete().eq('id', id);
-  if (error) { flash('Comment not deleted. ' + error.message); return; }
-  state.thread.set(a.id, (state.thread.get(a.id) ?? []).filter(m => m.id !== id));
-  renderPane();
-}
-
 // -------------------------------------------------------------- keyboard
 document.addEventListener('keydown', e => {
   if (!$('app').classList.contains('on')) return;
@@ -715,6 +689,9 @@ $('toggle-rail').addEventListener('click', () =>
   $('main').classList.toggle('rail-open'));
 
 // ----------------------------------------------------------------- admin
+$('help').addEventListener('click', () => $('howto').showModal());
+$('howto-close').addEventListener('click', () => $('howto').close());
+
 $('admin-open').addEventListener('click', () => { lockCopy(); $('admin').showModal(); });
 $('admin-close').addEventListener('click', () => $('admin').close());
 

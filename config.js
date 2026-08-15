@@ -6,11 +6,18 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-export const SUPABASE_URL = 'https://ciuevdpwokgltibsahyp.supabase.co';
-export const SUPABASE_ANON_KEY = 'sb_publishable_mZehy_-aKZ1fIRF-Vw1G4Q_nYiHP2px';
+export const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
+export const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  db: { schema: 'sweeep' }
+  db: { schema: 'sweeep' },
+  // Keeps the session in browser storage and refreshes it in the background, so
+  // the access key is entered once per browser rather than once per visit.
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    storageKey: 'sweeep-review-session',
+  },
 });
 
 // Committee roster. These are login identifiers for pre-created accounts. No
