@@ -6,8 +6,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-export const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
-export const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
+export const SUPABASE_URL = 'https://ciuevdpwokgltibsahyp.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_mZehy_-aKZ1fIRF-Vw1G4Q_nYiHP2px';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   db: { schema: 'sweeep' }
