@@ -299,7 +299,7 @@ async function signIn() {
   $('send').disabled = false;
   if (error) {
     note.className = 'note err';
-    note.textContent = 'That key was not accepted.';
+    note.textContent = error.message;
   }
 }
 
