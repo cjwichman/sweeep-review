@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SWEEEP 2026 — Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#003057; --navy-deep:#002233; --gold:#B3A369; --gold-med:#A4925A;
+  --gold-dark:#857437; --paper:#F9F6E5; --rule:#D6DBD4; --grey:#54585A;
+  --surface:#FFFFFF; --warm:#8E8B76;
+  --sans:"Roboto",system-ui,sans-serif;
+  --cond:"Roboto Condensed",var(--sans);
+  --serif:"Newsreader",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--navy-deep);
+  font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold-dark);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:18px;padding:0 20px;height:54px;
+  background:var(--navy);border-bottom:3px solid var(--gold);color:#fff}
+.brand{font-family:var(--cond);font-weight:700;letter-spacing:.05em;font-size:15px}
+.brand span{color:var(--gold)}
+.spacer{flex:1}
+.ghost{border:1px solid rgba(255,255,255,.28);background:transparent;
+  padding:5px 10px;font-size:12px;color:rgba(255,255,255,.8);text-decoration:none}
+.ghost:hover{color:#fff;border-color:var(--gold)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 90px}
+.gate-msg{max-width:520px;margin:80px auto;background:var(--surface);
+  border:1px solid var(--rule);border-top:4px solid var(--gold);padding:30px;
+  font-size:14px;line-height:1.6}
+
+/* --------------------------------------------------------------- controls */
+.controls{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;
+  background:var(--surface);border:1px solid var(--rule);padding:16px 18px;
+  margin-bottom:22px}
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl label{font-family:var(--cond);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--grey)}
+.seg{display:flex}
+.seg button{border:1px solid var(--rule);background:var(--surface);
+  padding:6px 13px;font-family:var(--cond);font-size:13px;color:var(--grey)}
+.seg button+button{border-left:none}
+.seg button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);
+  color:#fff;font-weight:700}
+input[type=range]{width:210px;accent-color:var(--gold-dark)}
+.slots{font-family:var(--mono);font-size:13px}
+.slots b{font-size:16px;color:var(--navy)}
+
+/* ----------------------------------------------------------------- panels */
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;margin-bottom:22px}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:14px 16px}
+.panel h3{font-family:var(--cond);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--grey);margin:0 0 8px;font-weight:700}
+.stat{font-family:var(--mono);font-size:24px;color:var(--navy);line-height:1.15}
+.panel p{margin:6px 0 0;font-size:12px;color:var(--grey);line-height:1.45}
+
+/* ------------------------------------------------------------------ table */
+table{width:100%;border-collapse:collapse;background:var(--surface);
+  border:1px solid var(--rule)}
+th{font-family:var(--cond);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--grey);text-align:right;
+  padding:9px 8px;border-bottom:2px solid var(--gold);white-space:nowrap;
+  cursor:pointer;user-select:none;background:var(--surface);position:sticky;top:0}
+th:first-child,th:nth-child(2){text-align:left}
+th[aria-sort]{color:var(--navy)}
+th .car{opacity:.5;font-size:10px}
+td{padding:9px 8px;border-bottom:1px solid var(--rule);text-align:right;
+  font-family:var(--mono);font-size:12.5px;vertical-align:top}
+td:first-child{color:var(--grey)}
+td:nth-child(2){text-align:left;font-family:var(--serif);font-size:14.5px;
+  line-height:1.3;max-width:420px}
+tr.below td{color:var(--grey);background:#FCFBF4}
+tr.cut{box-shadow:inset 0 -2px 0 var(--navy)}
+tr.flag td:nth-child(2)::after{content:" ~";color:var(--gold-dark);font-weight:700}
+.sub{display:block;font-family:var(--sans);font-size:11.5px;color:var(--grey);
+  margin-top:2px}
+.egg{display:inline-block;font-family:var(--cond);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--gold-dark);border:1px solid var(--gold);
+  padding:0 5px;vertical-align:2px;margin-left:6px;white-space:nowrap}
+tr.below .egg{color:var(--navy);border-color:var(--navy);background:#fff}
+.cutline{font-family:var(--cond);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--navy);background:var(--paper);
+  padding:6px 8px;border-bottom:1px solid var(--rule)}
+.legend{font-size:12px;color:var(--grey);margin-top:12px;line-height:1.55}
+
+/* ------------------------------------------------------------- reviewers */
+.rev table{margin-top:8px}
+.rev td:first-child,.rev th:first-child{text-align:left;font-family:var(--sans)}
+.bars{display:flex;gap:2px;justify-content:flex-end}
+.bars i{width:9px;background:var(--gold-med);display:block;align-self:flex-end}
+.bars-cell{height:22px;display:flex;align-items:flex-end;justify-content:flex-end}
+
+h2.sec{font-family:var(--cond);font-size:12px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--grey);margin:34px 0 10px;font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">SWEEEP <span>2026</span> &middot; Rankings</span>
+  <span class="spacer"></span>
+  <a class="ghost" href="index.html">Back to review</a>
+</header>
+
+<div class="wrap" id="wrap">
+  <div class="gate-msg" id="msg">Loading rankings.</div>
+</div>
+
+<script type="module">
+import { sb, esc } from './config.js';
+
+const $ = id => document.getElementById(id);
+
+const state = {
+  abstracts: [], reviews: [], names: new Map(),
+  track: 'full', sort: 'z', dir: -1, slots: 20, rows: [], ordered: new Set(),
+};
+
+// Aggregation definitions. Each returns a number, higher is better.
+const AGGS = {
+  mean:   { label: 'Mean',    tip: 'Raw average of scores.' },
+  z:      { label: 'Z-mean',  tip: 'Scores standardized within reviewer, then averaged. Removes reviewer leniency.' },
+  median: { label: 'Median',  tip: 'Middle score. Robust to one outlying reviewer.' },
+  borda:  { label: 'Pctile',  tip: 'Average within-reviewer percentile rank. Uses only the ordering each reviewer implied.' },
+  min:    { label: 'Min',     tip: 'Lowest score received. A veto view.' },
+};
+
+const mean = v => v.reduce((a, b) => a + b, 0) / v.length;
+const sd = v => {
+  if (v.length < 2) return 0;
+  const m = mean(v);
+  return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (v.length - 1));
+};
+const median = v => {
+  const s = [...v].sort((a, b) => a - b), h = Math.floor(s.length / 2);
+  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+};
+
+// ------------------------------------------------------------------- load
+const { data: { session } } = await sb.auth.getSession();
+if (!session) {
+  $('msg').innerHTML = 'Not signed in. <a href="index.html">Sign in on the review page</a> first.';
+} else {
+  const [roster, abstracts, reviews] = await Promise.all([
+    sb.from('reviewers').select('id, display_name'),
+    sb.from('abstracts').select('id, response_id, track, title, submitter, affiliation, role, eggtimer_ok'),
+    sb.from('reviews').select('reviewer_id, abstract_id, score, position'),
+  ]);
+  const rows = (reviews.data ?? []).filter(r => r.score != null);
+  const reviewerCount = new Set(rows.map(r => r.reviewer_id)).size;
+
+  if (reviewerCount < 2) {
+    $('msg').innerHTML = 'Only one reviewer\u2019s scores are readable. '
+      + 'Rankings appear once the organizer reveals reviews from the Admin panel.';
+  } else {
+    for (const r of roster.data ?? []) state.names.set(r.id, r.display_name);
+    state.abstracts = abstracts.data ?? [];
+    state.reviews = rows;
+    build();
+  }
+}
+
+// -------------------------------------------------------------- computing
+// Reviewer-level moments, computed across everything a reviewer scored.
+function reviewerStats() {
+  const by = new Map();
+  for (const r of state.reviews) {
+    if (!by.has(r.reviewer_id)) by.set(r.reviewer_id, []);
+    by.get(r.reviewer_id).push(r.score);
+  }
+  const out = new Map();
+  for (const [id, scores] of by) {
+    out.set(id, { n: scores.length, m: mean(scores), s: sd(scores), scores });
+  }
+  return out;
+}
+
+// Within-reviewer percentile rank, computed inside the track so the two
+// tranches are never pooled.
+//
+// A reviewer who dragged their list into an order gets a strict ranking from
+// those positions. A reviewer who never opened the list view falls back to
+// midranks over their scores, which leaves ties intact. Both land on the same
+// zero-to-one scale, so the two kinds of reviewer average together cleanly.
+function percentiles(track) {
+  const ids = new Set(state.abstracts.filter(a => a.track === track).map(a => a.id));
+  const by = new Map();
+  for (const r of state.reviews) {
+    if (!ids.has(r.abstract_id)) continue;
+    if (!by.has(r.reviewer_id)) by.set(r.reviewer_id, []);
+    by.get(r.reviewer_id).push(r);
+  }
+  const pct = new Map();
+  state.ordered = new Set();
+  for (const [rid, rs] of by) {
+    const n = rs.length;
+    const placed = rs.filter(r => r.position != null);
+    const useOrder = placed.length === n && n > 1;
+    if (useOrder) {
+      state.ordered.add(rid);
+      const sorted = [...rs].sort((a, b) => a.position - b.position);
+      sorted.forEach((r, i) =>
+        pct.set(rid + ':' + r.abstract_id, 1 - i / (n - 1)));
+    } else {
+      for (const r of rs) {
+        const below = rs.filter(o => o.score < r.score).length;
+        const equal = rs.filter(o => o.score === r.score).length;
+        pct.set(rid + ':' + r.abstract_id,
+          n > 1 ? (below + (equal - 1) / 2) / (n - 1) : 0.5);
+      }
+    }
+  }
+  return pct;
+}
+
+function compute() {
+  const rstat = reviewerStats();
+  const pct = percentiles(state.track);
+  const byAbs = new Map();
+  for (const r of state.reviews) {
+    if (!byAbs.has(r.abstract_id)) byAbs.set(r.abstract_id, []);
+    byAbs.get(r.abstract_id).push(r);
+  }
+
+  return state.abstracts
+    .filter(a => a.track === state.track)
+    .map(a => {
+      const rs = byAbs.get(a.id) ?? [];
+      const scores = rs.map(r => r.score);
+      const zs = rs.map(r => {
+        const st = rstat.get(r.reviewer_id);
+        return st && st.s > 0 ? (r.score - st.m) / st.s : 0;
+      });
+      const ps = rs.map(r => pct.get(r.reviewer_id + ':' + a.id) ?? 0.5);
+      return {
+        a, n: rs.length,
+        mean:   scores.length ? mean(scores) : null,
+        z:      zs.length ? mean(zs) : null,
+        median: scores.length ? median(scores) : null,
+        borda:  ps.length ? mean(ps) : null,
+        min:    scores.length ? Math.min(...scores) : null,
+        spread: scores.length ? sd(scores) : null,
+        detail: rs.map(r => (state.names.get(r.reviewer_id) ?? '?') + ' ' + r.score),
+      };
+    });
+}
+
+// Abstracts that land above the bar under some aggregations and below under
+// others. These are the ones worth arguing about.
+function sensitivity(rows, slots) {
+  const sets = Object.keys(AGGS).map(k => {
+    const ranked = [...rows].filter(r => r[k] != null)
+      .sort((x, y) => y[k] - x[k]).slice(0, slots);
+    return new Set(ranked.map(r => r.a.id));
+  });
+  const flags = new Set();
+  for (const r of rows) {
+    const hits = sets.filter(s => s.has(r.a.id)).length;
+    if (hits > 0 && hits < sets.length) flags.add(r.a.id);
+  }
+  return flags;
+}
+
+// ------------------------------------------------------------------- view
+function build() {
+  const n = state.abstracts.filter(a => a.track === state.track).length;
+  state.slots = Math.min(state.slots, n);
+  $('wrap').innerHTML = `
+    <div class="controls">
+      <div class="ctl">
+        <label>Track</label>
+        <div class="seg" id="track-seg">
+          <button data-track="full">Full talks</button>
+          <button data-track="egg">Egg-timers</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label>Slots available</label>
+        <div class="slots"><b id="slot-n"></b> of <span id="track-n"></span></div>
+        <input type="range" id="slots" min="1" max="${n}">
+      </div>
+      <div class="ctl">
+        <label>Sort by</label>
+        <div class="seg" id="agg-seg">
+          ${Object.entries(AGGS).map(([k, v]) =>
+            `<button data-agg="${k}" title="${v.tip}">${v.label}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="panels" id="panels"></div>
+    <table id="tbl"></table>
+    <p class="legend">
+      Rows below the bar are shaded. A tilde marks an abstract that clears the bar
+      under some aggregations and misses under others.
+    </p>
+    <h2 class="sec">Reviewer behavior</h2>
+    <div class="rev" id="rev"></div>`;
+
+  $('slots').value = state.slots;
+  $('track-seg').addEventListener('click', e => {
+    const b = e.target.closest('[data-track]');
+    if (!b) return;
+    state.track = b.dataset.track;
+    build();
+  });
+  $('agg-seg').addEventListener('click', e => {
+    const b = e.target.closest('[data-agg]');
+    if (!b) return;
+    state.sort = b.dataset.agg; state.dir = -1; refresh();
+  });
+  $('slots').addEventListener('input', e => {
+    state.slots = +e.target.value; refresh();
+  });
+  refresh();
+}
+
+function refresh() {
+  state.rows = compute();
+  const n = state.rows.length;
+  $('track-n').textContent = n;
+  $('slot-n').textContent = state.slots;
+  document.querySelectorAll('[data-track]').forEach(b =>
+    b.setAttribute('aria-pressed', b.dataset.track === state.track));
+  document.querySelectorAll('[data-agg]').forEach(b =>
+    b.setAttribute('aria-pressed', b.dataset.agg === state.sort));
+
+  const key = state.sort;
+  const sorted = [...state.rows].sort((x, y) => {
+    const a = x[key], b = y[key];
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return (a - b) * state.dir || x.a.title.localeCompare(y.a.title);
+  });
+  const flags = sensitivity(state.rows, state.slots);
+  const cut = sorted[state.slots - 1];
+  const nextUp = sorted[state.slots];
+
+  renderPanels(sorted, cut, nextUp, flags);
+  renderTable(sorted, flags);
+  renderReviewers();
+}
+
+function fmt(v, d = 2) { return v == null ? '\u2014' : v.toFixed(d); }
+
+function renderPanels(sorted, cut, nextUp, flags) {
+  const scored = state.rows.filter(r => r.n > 0).length;
+  const gap = cut && nextUp ? cut[state.sort] - nextUp[state.sort] : null;
+  const contested = state.rows.filter(r => r.spread >= 1.2).length;
+  $('panels').innerHTML = `
+    <div class="panel"><h3>Score at the bar</h3>
+      <div class="stat">${fmt(cut?.[state.sort])}</div>
+      <p>${AGGS[state.sort].label} of the last abstract inside ${state.slots} slots.</p></div>
+    <div class="panel"><h3>Gap to next</h3>
+      <div class="stat">${fmt(gap)}</div>
+      <p>Distance from the last accepted to the first rejected. A small gap means the bar is arbitrary.</p></div>
+    <div class="panel"><h3>Order-sensitive</h3>
+      <div class="stat">${flags.size}</div>
+      <p>Abstracts that change side of the bar depending on the aggregation used.</p></div>
+    <div class="panel"><h3>Disagreement</h3>
+      <div class="stat">${contested}</div>
+      <p>Abstracts with a reviewer standard deviation of 1.2 or more.</p></div>
+    <div class="panel"><h3>Demotable</h3>
+      <div class="stat">${state.track === 'full'
+        ? sorted.slice(state.slots).filter(r => r.a.eggtimer_ok).length : '\u2014'}</div>
+      <p>${state.track === 'full'
+        ? 'Full requests below the bar that accepted an egg-timer slot instead.'
+        : 'Applies to the full track.'}</p></div>
+    <div class="panel"><h3>Coverage</h3>
+      <div class="stat">${scored}/${state.rows.length}</div>
+      <p>Abstracts with at least one score in this track.</p></div>`;
+}
+
+function renderTable(sorted, flags) {
+  const cols = [['#', null], ['Abstract', null], ['n', 'n'],
+    ...Object.entries(AGGS).map(([k, v]) => [v.label, k]), ['SD', 'spread']];
+
+  const head = '<tr>' + cols.map(([label, key]) => {
+    const active = key === state.sort;
+    return `<th ${key ? `data-key="${key}"` : ''} ${active ? 'aria-sort="descending"' : ''}>`
+      + label + (active ? ' <span class="car">\u25BC</span>' : '') + '</th>';
+  }).join('') + '</tr>';
+
+  const body = sorted.map((r, i) => {
+    const row = `<tr class="${i >= state.slots ? 'below' : ''} ${i === state.slots - 1 ? 'cut' : ''} ${flags.has(r.a.id) ? 'flag' : ''}">
+      <td>${i + 1}</td>
+      <td>${esc(r.a.title)}
+        ${r.a.track === 'full' && r.a.eggtimer_ok ? '<span class="egg">egg ok</span>' : ''}
+        <span class="sub">${esc(r.a.submitter)}${r.a.affiliation ? ' \u00B7 ' + esc(r.a.affiliation) : ''}${r.a.role ? ' \u00B7 ' + esc(r.a.role) : ''}
+          &nbsp;&nbsp;${esc(r.detail.join('  '))}</span></td>
+      <td>${r.n}</td>
+      <td>${fmt(r.mean)}</td><td>${fmt(r.z)}</td><td>${fmt(r.median, 1)}</td>
+      <td>${fmt(r.borda)}</td><td>${fmt(r.min, 0)}</td><td>${fmt(r.spread)}</td>
+    </tr>`;
+    return i === state.slots
+      ? `<tr><td class="cutline" colspan="9">Bar &mdash; ${state.slots} slots</td></tr>` + row
+      : row;
+  }).join('');
+
+  $('tbl').innerHTML = head + body;
+  $('tbl').querySelectorAll('th[data-key]').forEach(th =>
+    th.addEventListener('click', () => {
+      const k = th.dataset.key;
+      state.dir = state.sort === k ? -state.dir : -1;
+      state.sort = k;
+      refresh();
+    }));
+}
+
+function renderReviewers() {
+  const st = reviewerStats();
+  const rows = [...st.entries()].map(([id, s]) => {
+    const dist = [1, 2, 3, 4, 5].map(n => s.scores.filter(x => x === n).length);
+    const top = Math.max(...dist, 1);
+    const bars = dist.map(c =>
+      `<i style="height:${Math.round(4 + 18 * c / top)}px" title="${c} scores"></i>`).join('');
+    return `<tr><td>${esc(state.names.get(id) ?? 'Reviewer')}</td>
+      <td>${s.n}</td><td>${fmt(s.m)}</td><td>${fmt(s.s)}</td>
+      <td>${state.ordered.has(id) ? 'yes' : '\u2014'}</td>
+      <td><div class="bars-cell"><div class="bars">${bars}</div></div></td></tr>`;
+  }).join('');
+  $('rev').innerHTML = `<table>
+    <tr><th>Reviewer</th><th>Scored</th><th>Mean</th><th>SD</th>
+        <th>Ordered</th><th>1 &rarr; 5</th></tr>
+    ${rows}</table>`;
+}
+</script>
+</body>
+</html>
