@@ -31,16 +31,10 @@ The Supabase project also hosts amend.city. Two consequences:
    list.
 3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `config.js`. The anon key is
    public by design. Row-level security is what protects the data.
-4. Populate the allowlist. This is the only committee setup step.
-   ```sql
-   insert into sweeep.invitees (email, is_admin) values
-     ('organizer@example.edu', true),
-     ('reviewer@example.edu',  false)
-   on conflict (email) do nothing;
-   ```
-   Reviewers claim their seat on first sign-in and supply their own display
-   name. An address absent from `sweeep.invitees` gets a clear rejection and no
-   access.
+4. Create six accounts under Authentication -> Users -> Add user, one per login
+   address in `config.js`, all sharing one password, with Auto Confirm User on.
+   Then run the reviewer insert at the bottom of `schema.sql`, and turn off
+   public signups under Authentication -> Sign In / Providers.
 5. Push to a repo, enable Pages, distribute the URL.
 
 ## Verify before distributing

@@ -47,9 +47,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 .gate-card p{color:var(--grey);font-size:13px;margin:0 0 24px}
 label{display:block;font-family:var(--cond);font-size:11px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--grey);margin-bottom:6px}
-input[type=email],input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--rule);
+input[type=password],select{width:100%;padding:10px 12px;border:1px solid var(--rule);
   background:var(--paper);font:inherit;color:var(--navy-deep)}
-input[type=email]:focus,input[type=text]:focus{border-color:var(--navy);outline:none}
+input[type=password]:focus,select:focus{border-color:var(--navy);outline:none}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--grey) 50%),
+  linear-gradient(135deg,var(--grey) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 18px,calc(100% - 13px) 18px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 .btn{display:inline-block;width:100%;margin-top:16px;padding:11px 16px;border:none;
   background:var(--navy);color:#fff;font-weight:500}
 .btn:hover{background:var(--navy-deep)}
@@ -218,23 +222,13 @@ dialog::backdrop{background:rgba(0,34,51,.45)}
   <div class="gate-card">
     <div class="mark">SWEEEP 2026 &middot; Georgia Tech</div>
     <h1>Abstract review</h1>
-    <p>Program committee access. A sign-in link is sent to the address on file.</p>
-    <label for="email">Email</label>
-    <input type="email" id="email" autocomplete="email" placeholder="name@university.edu">
-    <button class="btn" id="send">Send sign-in link</button>
+    <p>Program committee access.</p>
+    <label for="who">Who are you</label>
+    <select id="who"></select>
+    <label for="key" style="margin-top:16px">Access key</label>
+    <input type="password" id="key" autocomplete="current-password">
+    <button class="btn" id="send">Start reviewing</button>
     <div class="note" id="gate-note"></div>
-  </div>
-</div>
-
-<div class="gate" id="claim" style="display:none">
-  <div class="gate-card">
-    <div class="mark">SWEEEP 2026 &middot; Georgia Tech</div>
-    <h1>One detail</h1>
-    <p>This name labels scores and comments for the rest of the committee.</p>
-    <label for="display-name">Display name</label>
-    <input type="text" id="display-name" autocomplete="name" placeholder="Wichman">
-    <button class="btn" id="claim-btn">Start reviewing</button>
-    <div class="note" id="claim-note"></div>
   </div>
 </div>
 
@@ -273,7 +267,7 @@ dialog::backdrop{background:rgba(0,34,51,.45)}
 </dialog>
 
 <script type="module">
-import { sb, TRACK_LABEL, esc } from './config.js';
+import { sb, REVIEWERS, TRACK_LABEL, esc } from './config.js';
 
 const state = {
   me: null, isAdmin: false, unlocked: false,
@@ -287,22 +281,30 @@ const when = t => new Date(t).toLocaleDateString(undefined,
   { month: 'short', day: 'numeric' });
 
 // ---------------------------------------------------------------- auth
-$('send').addEventListener('click', async () => {
-  const email = $('email').value.trim();
+// Six accounts share one access key. Identity is whoever the person selects,
+// which is enough for a committee that already trusts each other. Anyone
+// holding the key can sign in as anyone, so it is not an audit trail.
+
+$('who').innerHTML = REVIEWERS
+  .map(r => `<option value="${r.login}">${esc(r.name)}</option>`).join('');
+
+async function signIn() {
   const note = $('gate-note');
-  if (!email) { note.className = 'note err'; note.textContent = 'Enter an email address.'; return; }
+  const key = $('key').value;
+  if (!key) { note.className = 'note err'; note.textContent = 'Enter the access key.'; return; }
   $('send').disabled = true;
-  const { error } = await sb.auth.signInWithOtp({
-    email, options: { emailRedirectTo: window.location.href.split('#')[0] }
+  const { error } = await sb.auth.signInWithPassword({
+    email: $('who').value, password: key
   });
   $('send').disabled = false;
-  note.className = error ? 'note err' : 'note ok';
-  note.textContent = error
-    ? 'Sign-in link not sent. ' + error.message
-    : 'Link sent. Check the inbox for ' + email + '.';
-});
+  if (error) {
+    note.className = 'note err';
+    note.textContent = 'That key was not accepted.';
+  }
+}
 
-$('email').addEventListener('keydown', e => { if (e.key === 'Enter') $('send').click(); });
+$('send').addEventListener('click', signIn);
+$('key').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
 $('signout').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.reload();
 });
@@ -321,14 +323,6 @@ async function start(session) {
   booted = true;
   state.me = session.user.id;
   $('gate').style.display = 'none';
-
-  // The seat may not exist yet. First sign-in collects a display name and
-  // claims it against the invitee list.
-  const seat = await sb.from('reviewers').select('id').eq('id', state.me).maybeSingle();
-  if (!seat.data) {
-    const ok = await claimSeat(session.user.email);
-    if (!ok) { booted = false; return; }
-  }
 
   $('app').classList.add('on');
 
@@ -368,30 +362,6 @@ async function start(session) {
   if (state.isAdmin) { $('admin-open').hidden = false; $('dash-link').hidden = false; }
   else if (state.unlocked) $('dash-link').hidden = false;
   render();
-}
-
-function claimSeat(email) {
-  return new Promise(resolve => {
-    $('claim').style.display = 'grid';
-    $('display-name').value = (email ?? '').split('@')[0];
-    $('display-name').focus();
-    const submit = async () => {
-      $('claim-btn').disabled = true;
-      const { error } = await sb.rpc('claim_seat', { name: $('display-name').value });
-      $('claim-btn').disabled = false;
-      if (error) {
-        $('claim-note').className = 'note err';
-        $('claim-note').textContent = error.message;
-        resolve(false);
-        return;
-      }
-      $('claim').style.display = 'none';
-      resolve(true);
-    };
-    $('claim-btn').addEventListener('click', submit, { once: false });
-    $('display-name').addEventListener('keydown',
-      e => { if (e.key === 'Enter') submit(); });
-  });
 }
 
 // -------------------------------------------------------------- rendering

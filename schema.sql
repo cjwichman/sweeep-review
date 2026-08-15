@@ -181,50 +181,30 @@ create policy settings_write on sweeep.app_settings
   for update using (sweeep.is_admin()) with check (sweeep.is_admin());
 
 -- --------------------------------------------------------- provisioning
--- The committee is defined by email before anyone signs in. Seats are claimed
--- on first sign-in, which is also where the reviewer supplies their own name.
--- Nothing here requires looking up a uid by hand.
-
-create table if not exists sweeep.invitees (
-  email     text primary key,
-  is_admin  boolean not null default false
-);
-
-alter table sweeep.invitees enable row level security;
--- No policy. The allowlist is readable only through the definer function below.
-
--- Insert the committee, one row per address:
+-- The committee shares a single access key. Create six accounts in the
+-- dashboard under Authentication -> Users -> Add user, using the login
+-- addresses from config.js, the same password for each, and Auto Confirm User
+-- switched on. No mail is sent and the addresses need not resolve.
 --
---   insert into sweeep.invitees (email, is_admin) values
---     ('organizer@example.edu', true),
---     ('reviewer@example.edu',  false)
---   on conflict (email) do nothing;
-
--- Claims a seat for the signed-in user if their address is on the allowlist.
--- Re-running updates the display name, so reviewers can rename themselves.
-create or replace function sweeep.claim_seat(name text)
-returns sweeep.reviewers language plpgsql security definer
-set search_path = sweeep, public as $$
-declare
-  addr text := lower(auth.jwt() ->> 'email');
-  adm  boolean;
-  out  sweeep.reviewers;
-begin
-  select i.is_admin into adm from sweeep.invitees i where lower(i.email) = addr;
-  if not found then
-    raise exception 'Address % is not on the committee list.', addr;
-  end if;
-
-  insert into sweeep.reviewers (id, email, display_name, is_admin)
-  values (auth.uid(), addr,
-          coalesce(nullif(trim(name), ''), split_part(addr, '@', 1)), adm)
-  on conflict (id) do update
-    set display_name = excluded.display_name,
-        is_admin     = excluded.is_admin
-  returning * into out;
-
-  return out;
-end;
-$$;
-
-grant execute on function sweeep.claim_seat(text) to authenticated;
+-- Then create the reviewer rows, which is what every policy above tests:
+--
+--   insert into sweeep.reviewers (id, email, display_name, is_admin)
+--   select u.id, u.email, x.name, x.admin
+--   from auth.users u
+--   join (values
+--     ('wichman@sweeep.review', 'Casey Wichman',  true),
+--     ('taylor@sweeep.review',  'Laura Taylor',   false),
+--     ('brewer@sweeep.review',  'Dylan Brewer',   false),
+--     ('oliver@sweeep.review',  'Matthew Oliver', false),
+--     ('doshi@sweeep.review',   'Gaurav Doshi',   false),
+--     ('harris@sweeep.review',  'Bobby Harris',   false)
+--   ) as x(email, name, admin) on lower(u.email) = x.email
+--   on conflict (id) do update
+--     set display_name = excluded.display_name, is_admin = excluded.is_admin;
+--
+-- Confirm all six landed:
+--
+--   select display_name, is_admin from sweeep.reviewers order by display_name;
+--
+-- Turn off public signups under Authentication -> Sign In / Providers, so the
+-- shared key cannot be used to create further accounts.
