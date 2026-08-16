@@ -78,20 +78,22 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 /* ------------------------------------------------------------------ shell */
 .app{display:none;height:100dvh;grid-template-rows:auto 1fr}
 .app.on{display:grid}
-header{display:flex;align-items:center;gap:18px;padding:0 20px;height:54px;
-  background:var(--navy);border-bottom:3px solid var(--gold);color:#fff}
+header{display:flex;align-items:center;gap:14px;padding:0 16px;height:54px;
+  background:var(--navy);border-bottom:3px solid var(--gold);color:#fff;
+  min-width:0;overflow:hidden}
+header>*{flex:0 0 auto;min-width:0}
 .brand{font-family:var(--cond);font-weight:700;letter-spacing:.05em;font-size:15px;
   white-space:nowrap}
 .brand span{color:var(--gold)}
 .tracks{display:flex;gap:0}
 .track-tab{border:1px solid rgba(255,255,255,.28);background:transparent;
   padding:5px 13px;font-family:var(--cond);font-size:13px;letter-spacing:.03em;
-  color:rgba(255,255,255,.72)}
+  color:rgba(255,255,255,.72);white-space:nowrap}
 .track-tab+.track-tab{border-left:none}
 .track-tab[aria-selected=true]{background:var(--gold);border-color:var(--gold);
   color:var(--navy-deep);font-weight:700}
 /* mode switch, not a filter, so it stays a button rather than a tab */
-.view-btn{border-color:var(--gold);color:var(--gold)}
+.view-btn{border-color:var(--gold);color:var(--gold);white-space:nowrap}
 /* the rail is permanent on wide screens, where this button would do nothing */
 @media (min-width:861px){ #toggle-rail{display:none} }
 .spacer{flex:1}
@@ -114,6 +116,8 @@ a.ghost{text-decoration:none}
   color:var(--grey);border-bottom:1px solid var(--rule)}
 .menu-head b{display:block;font-size:14px;color:var(--navy);font-weight:500;
   margin-top:2px}
+.menu-head span{display:block;font-family:var(--mono);font-size:11.5px;
+  color:var(--grey);margin-top:5px}
 .menu-wrap{position:relative}
 .menu-btn{font-size:15px;line-height:1;padding:3px 9px 6px}
 .menu-btn[aria-expanded=true]{border-color:var(--gold);color:var(--gold)}
@@ -227,6 +231,20 @@ textarea:focus{border-color:var(--navy);outline:none}
   background:var(--surface);font-family:var(--mono);font-size:11px;padding:0}
 .mini button[aria-pressed=true]{background:var(--gold);border-color:var(--gold-dark);
   color:var(--navy-deep);font-weight:500}
+.li-peek{border:1px solid var(--rule);background:var(--surface);
+  font-family:var(--cond);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--grey);padding:1px 7px;margin-left:7px;
+  vertical-align:1px}
+.li-peek:hover{color:var(--navy);border-color:var(--navy)}
+.li-t>span[data-open]{cursor:pointer}
+#peek-abs{max-width:640px;width:calc(100% - 32px);max-height:86dvh}
+.peek-body{padding:30px 32px 26px}
+.peek-body h2{font-size:24px;margin-bottom:12px}
+.peek-body .body{font-size:16px}
+.peek-foot{margin-top:26px;padding-top:18px;border-top:1px solid var(--rule);
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.peek-foot .scores{margin-bottom:0}
+.peek-foot .field-label{margin-bottom:0}
 .li.unscored{background:#FCFBF4}
 .li.unscored .li-t{color:var(--grey)}
 
@@ -255,16 +273,18 @@ kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
   main.rail-open .pane{display:none}
   .pane{padding:24px 20px 80px}
   .brand span{display:none}
-  .whoami{max-width:88px;font-size:11.5px}
+  .whoami{max-width:110px}
 }
 /* Narrow phones. The header is the only row that cannot wrap, so the least
    used controls come out rather than letting the page scroll sideways. */
 @media (max-width:560px){
-  header{gap:8px;padding:0 10px;height:50px}
+  header{gap:7px;padding:0 9px;height:50px}
   .brand{display:none}
-  .track-tab{padding:5px 9px;font-size:12px}
-  .ghost{padding:5px 8px;font-size:11.5px}
-  .meter{font-size:11px}
+  .track-tab{padding:5px 8px;font-size:12px}
+  .ghost{padding:5px 7px;font-size:11.5px}
+  /* Progress and the signed-in name are both repeated in the menu, so the
+     header carries navigation alone rather than forcing the page wider. */
+  .meter,.whoami{display:none}
   .pane{padding:20px 16px 72px}
   h2{font-size:23px}
   .body{font-size:16px}
@@ -329,7 +349,8 @@ kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
       <button class="ghost menu-btn" id="menu-btn" aria-expanded="false"
               aria-haspopup="true" aria-label="Menu">&#8943;</button>
       <div class="menu" id="menu" hidden>
-        <div class="menu-head">Signed in as <b id="menu-who"></b></div>
+        <div class="menu-head">Signed in as <b id="menu-who"></b>
+          <span id="menu-meter"></span></div>
         <a id="dash-link" href="dashboard.html" hidden>Dashboard</a>
         <button id="admin-open" hidden>Committee controls</button>
         <button id="help">How this works</button>
@@ -342,6 +363,10 @@ kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
     <section class="pane" id="pane"></section>
   </main>
 </div>
+
+<dialog id="peek-abs">
+  <div class="dlg peek-body" id="peek-abs-body"></div>
+</dialog>
 
 <dialog id="howto">
   <div class="dlg">
@@ -618,8 +643,11 @@ function renderList() {
             <button data-down="${r.a.id}" aria-label="Move down">&#9660;</button>
           </span>
           <span class="li-n">${String(i + 1).padStart(3, '0')}</span>
-          <span class="li-t" data-open="${r.a.id}">${esc(r.a.title)}
-            <b>&nbsp;&nbsp;${esc(r.a.submitter)}</b></span>
+          <span class="li-t">
+            <span data-open="${r.a.id}">${esc(r.a.title)}</span>
+            <button class="li-peek" data-peek="${r.a.id}"
+                    aria-label="Read abstract">Read</button>
+            <b>${esc(r.a.submitter)}</b></span>
           <span class="mini">
             ${[1, 2, 3, 4, 5].map(n =>
               `<button data-set="${r.a.id}" data-n="${n}"
@@ -628,6 +656,8 @@ function renderList() {
         </div>`).join('')}
     </div>`;
 
+  $('pane').querySelectorAll('[data-peek]').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); showAbstract(+b.dataset.peek); }));
   $('pane').querySelectorAll('[data-open]').forEach(el =>
     el.addEventListener('click', () => {
       const idx = inTrack().findIndex(a => a.id === +el.dataset.open);
@@ -652,6 +682,39 @@ async function nudge(id, step) {
   if (j < 0 || j >= list.length) return;
   await moveTo(id, list[j]);
   document.querySelector(`.li[data-id="${id}"] [data-${step < 0 ? 'up' : 'down'}]`)?.focus();
+}
+
+// Read an abstract without leaving the list, since ranking from titles alone
+// asks people to remember eighty-odd submissions.
+function showAbstract(id) {
+  const a = state.abstracts.find(x => x.id === id);
+  const mine = state.mine.get(id) ?? {};
+  $('peek-abs-body').innerHTML = `
+    <div class="eyebrow"><span>${TRACK_LABEL[a.track]}</span>
+      ${a.word_count ? `<span>${a.word_count} words</span>` : ''}</div>
+    <h2>${esc(a.title)}</h2>
+    <div class="byline">
+      <div class="bl"><span class="bl-k">Submitted by</span>
+        <span><b>${esc(a.submitter)}</b>${a.affiliation ? ', ' + esc(a.affiliation) : ''}${a.role ? ' &middot; ' + esc(a.role) : ''}</span></div>
+      ${a.coauthors ? `<div class="bl"><span class="bl-k">Authors</span>
+        <span>${esc(a.coauthors)}</span></div>` : ''}
+    </div>
+    <div class="body">${esc(a.body)}</div>
+    <div class="peek-foot">
+      <span class="field-label">Score</span>
+      <span class="scores">${[1, 2, 3, 4, 5].map(n =>
+        `<button class="score" data-pset="${a.id}" data-n="${n}"
+           aria-pressed="${mine.score === n}">${n}</button>`).join('')}</span>
+    </div>`;
+  $('peek-abs-body').querySelectorAll('[data-pset]').forEach(b =>
+    b.addEventListener('click', async () => {
+      await setScoreById(+b.dataset.pset, +b.dataset.n);
+      const now = state.mine.get(+b.dataset.pset)?.score ?? null;
+      $('peek-abs-body').querySelectorAll('[data-pset]').forEach(x =>
+        x.setAttribute('aria-pressed', +x.dataset.n === now));
+    }));
+  $('peek-abs').showModal();
+  $('peek-abs').scrollTop = 0;
 }
 
 function wireDrag() {
@@ -753,6 +816,8 @@ function renderMeter() {
   const list = inTrack();
   const done = list.filter(a => state.mine.get(a.id)?.score != null).length;
   $('meter').innerHTML = `<b>${done}</b> / ${list.length} scored`;
+  $('menu-meter').textContent =
+    `${done} of ${list.length} scored in ${TRACK_LABEL[state.track].toLowerCase()}s`;
 }
 
 function renderRail() {
@@ -915,6 +980,11 @@ menu.addEventListener('click', () => closeMenu());
 
 $('help').addEventListener('click', () => $('howto').showModal());
 $('howto-close').addEventListener('click', () => $('howto').close());
+
+// Clicking the backdrop closes any dialog. The backdrop is the dialog element
+// itself, so a click landing outside the inner panel is outside the content.
+document.querySelectorAll('dialog').forEach(dlg =>
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); }));
 
 $('admin-open').addEventListener('click', () => { lockCopy(); $('admin').showModal(); });
 $('admin-close').addEventListener('click', () => $('admin').close());

@@ -192,6 +192,11 @@ Rows are dragged on a desktop browser. Touch devices do not fire HTML5 drag
 events, so each row also carries up and down arrows, shown on narrow screens.
 Both paths call the same reordering code.
 
+Each row carries a Read button that opens the full abstract in a dialog, with
+the score buttons attached, since ranking from titles alone would ask reviewers
+to hold eighty-odd submissions in mind at once. Clicking the title itself
+returns to the reading view at that abstract.
+
 Positions feed the Pctile column and nothing else. A reviewer with a complete
 manual order contributes a strict ranking. A reviewer who never opened the list
 view contributes midranks over their scores, which leaves genuine ties intact.
