@@ -136,10 +136,10 @@ separate screen. Anyone requesting a full presentation lands in the full track.
 
 The form also asks whether a full-talk submitter would accept a shorter slot.
 That answer is recorded but not enforced, since offers to people who declined it
-have been accepted often enough in past years. Three places surface it: a tag
-under the byline in the review pane, a marker in the list view, and a marker on
-the dashboard alongside a readout of how many short offers go to people who did
-not ask for one.
+have been accepted often enough in past years. Two places surface it: a tag under
+the byline in the review pane, and a marker on the dashboard alongside a readout
+of how many short offers go to people who did not ask for one. It is deliberately
+absent from the list view, which is for ranking rather than program building.
 
 The script prints three checks before uploading, none of which block the load.
 Submitters requesting a slot their role is not eligible for are flagged.

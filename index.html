@@ -587,10 +587,7 @@ function renderList() {
   $('pane').innerHTML = `
     <div class="list-head">
       <h2>My list &middot; ${TRACK_LABEL[state.track]}</h2>
-      <p>${touch
-        ? 'Sorted by your scores. Use the arrows to rank abstracts you scored the same, so the committee knows which you prefer.'
-        : 'Sorted by your scores. Drag rows to rank abstracts you scored the same, so the committee knows which you prefer.'}
-        Optional.</p>
+      <p>Optional: ${touch ? 'Use the arrows to' : 'Drag abstracts to'} reorder and break ties.</p>
     </div>
     <div class="list" id="list">
       ${rows.map((r, i) => `
@@ -603,8 +600,7 @@ function renderList() {
           </span>
           <span class="li-n">${String(i + 1).padStart(3, '0')}</span>
           <span class="li-t" data-open="${r.a.id}">${esc(r.a.title)}
-            <b>&nbsp;&nbsp;${esc(r.a.submitter)}${r.a.track === 'full' && r.a.eggtimer_ok
-              ? ' \u00B7 egg ok' : ''}</b></span>
+            <b>&nbsp;&nbsp;${esc(r.a.submitter)}</b></span>
           <span class="mini">
             ${[1, 2, 3, 4, 5].map(n =>
               `<button data-set="${r.a.id}" data-n="${n}"
