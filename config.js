@@ -4,10 +4,12 @@
 // sweeep schema. That schema must be listed under Settings -> API -> Exposed
 // schemas or every request returns an empty result.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Single bundled file rather than the esm.sh entry point, which fans out into
+// seven further requests and fails intermittently on mobile Safari.
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-export const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
-export const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
+export const SUPABASE_URL = 'https://ciuevdpwokgltibsahyp.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_mZehy_-aKZ1fIRF-Vw1G4Q_nYiHP2px';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   db: { schema: 'sweeep' },
