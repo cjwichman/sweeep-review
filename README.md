@@ -157,11 +157,20 @@ Four outcomes. Full is a 20-minute presentation. Short is 10 minutes, for
 faculty and post-docs. Egg-timer is 10 minutes, for Ph.D. students. The fourth
 is reject.
 
-Once scoring closes, the dashboard records the outcome. Set from bar applies the
-current slider position across the track in one pass. In the full track, anyone
-above the bar takes a full slot, and below it anyone who accepted the fallback
-moves to a short presentation while the rest are rejected. In the egg track the
-bar splits accept from reject. Decisions already recorded by hand are left alone, so
+The full track carries two bars, since full and short presentations are drawn
+from the same pool of requests. The first sets how many 20-minute slots exist,
+the second how many 10-minute slots follow, and everyone below both is rejected.
+The egg track has a single bar.
+
+The submission form asks whether a full-talk requester would accept a shorter
+slot. That answer is a signal rather than a constraint, since offers to people
+who declined it have been accepted often enough in past years. Short slots are
+filled by rank, and the readout under the short bar reports how many of those
+offers go to people who did not ask for one. The tag on each row shows who did.
+
+Shading and the two cut lines in the table follow the outcome the bars imply.
+Set from bar writes exactly that assignment, leaving decisions that already match
+alone. Decisions already recorded by hand are left alone, so
 the bulk pass can be run first and adjusted afterwards, or the other way round.
 
 Per-row buttons set full, short, egg, reject, or clear the decision. Accepted rows carry

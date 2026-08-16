@@ -56,6 +56,7 @@ header{display:flex;align-items:center;gap:18px;padding:0 20px;height:54px;
 input[type=range]{width:210px;accent-color:var(--gold-dark)}
 .slots{font-family:var(--mono);font-size:13px}
 .slots b{font-size:16px;color:var(--navy)}
+.sub-note{font-family:var(--sans);font-size:11.5px;color:var(--grey)}
 
 /* ----------------------------------------------------------------- panels */
 .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
@@ -81,11 +82,16 @@ td{padding:9px 8px;border-bottom:1px solid var(--rule);text-align:right;
 td:first-child{color:var(--grey)}
 td:nth-child(2){text-align:left;font-family:var(--serif);font-size:14.5px;
   line-height:1.3;max-width:420px}
-tr.below td{color:var(--grey);background:#FCFBF4}
-tr.cut{box-shadow:inset 0 -2px 0 var(--navy)}
+tr.o-short td{background:#FCFBF2}
+tr.o-reject td{color:var(--grey);background:#FBFAF6}
+tr.o-reject td:nth-child(2){color:var(--grey)}
 tr.flag td:nth-child(2)::after{content:" ~";color:var(--gold-dark);font-weight:700}
 .sub{display:block;font-family:var(--sans);font-size:11.5px;color:var(--grey);
   margin-top:2px}
+.scores-inline{display:inline-flex;flex-wrap:wrap;gap:0 6px;margin-left:4px}
+.sc{white-space:nowrap;font-family:var(--mono);font-size:11px;color:var(--navy)}
+.sc i{font-style:normal;font-family:var(--sans);color:var(--grey);margin-right:4px}
+.sc+.sc::before{content:"\00B7";color:var(--rule);margin-right:6px;font-weight:700}
 .dec{display:flex;gap:2px;justify-content:flex-end}
 .dec button{width:22px;height:24px;border:1px solid var(--rule);
   background:var(--surface);font-family:var(--mono);font-size:11px;padding:0;
@@ -112,7 +118,7 @@ tr.notes td{background:var(--paper);font-family:var(--sans);text-align:left;
 .egg{display:inline-block;font-family:var(--cond);font-size:10px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--gold-dark);border:1px solid var(--gold);
   padding:0 5px;vertical-align:2px;margin-left:6px;white-space:nowrap}
-tr.below .egg{color:var(--navy);border-color:var(--navy);background:#fff}
+tr.o-short .egg,tr.o-reject .egg{color:var(--navy);border-color:var(--navy);background:#fff}
 .cutline{font-family:var(--cond);font-size:11px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--navy);background:var(--paper);
   padding:6px 8px;border-bottom:1px solid var(--rule)}
@@ -148,8 +154,11 @@ const $ = id => document.getElementById(id);
 
 const state = {
   abstracts: [], reviews: [], names: new Map(),
-  track: 'full', sort: 'z', dir: -1, slots: 20, rows: [], ordered: new Set(),
+  track: 'full', sort: 'z', dir: -1, rows: [], ordered: new Set(),
   isAdmin: false,
+  // Full and short presentations are drawn from the same pool of requests, so
+  // the full track carries two bars. Egg-timers are a separate pool.
+  slots: { full: 20, short: 12, egg: 8 },
 };
 
 // Aggregation definitions. Each returns a number, higher is better.
@@ -160,6 +169,14 @@ const AGGS = {
   borda:  { label: 'Pctile',  tip: 'Average within-reviewer percentile rank. Uses only the ordering each reviewer implied.' },
   min:    { label: 'Min',     tip: 'Lowest score received. A veto view.' },
 };
+
+const DECISIONS = [
+  ['full',   'F', 'Full presentation, 20 minutes'],
+  ['short',  'S', 'Short presentation, 10 minutes, faculty and post-docs'],
+  ['egg',    'E', 'Egg-timer, 10 minutes, Ph.D. students'],
+  ['reject', 'R', 'Not on the program'],
+  [null,     '\u2014', 'Clear the decision'],
+];
 
 const mean = v => v.reduce((a, b) => a + b, 0) / v.length;
 const sd = v => {
@@ -279,12 +296,27 @@ function compute() {
         borda:  ps.length ? mean(ps) : null,
         min:    scores.length ? Math.min(...scores) : null,
         spread: scores.length ? sd(scores) : null,
-        detail: rs.map(r => (state.names.get(r.reviewer_id) ?? '?') + ' ' + r.score),
+        detail: rs.map(r => ({ who: state.names.get(r.reviewer_id) ?? '?', score: r.score })),
         notes: rs.filter(r => r.comment && r.comment.trim())
                  .map(r => ({ who: state.names.get(r.reviewer_id) ?? 'Reviewer',
                               score: r.score, text: r.comment.trim() })),
       };
     });
+}
+
+// Outcome implied by the current bars, in rank order. In the full track anyone
+// above the full bar takes a 20-minute slot, the next block takes short slots,
+// and the rest are rejected. The stated willingness to accept a shorter slot is
+// treated as a signal rather than a constraint, since offers to people who
+// declined it have been accepted often enough in past years.
+function assign(sorted) {
+  if (state.track === 'egg') {
+    return sorted.map((r, i) => i < state.slots.egg ? 'egg' : 'reject');
+  }
+  return sorted.map((r, i) =>
+    i < state.slots.full ? 'full'
+    : i < state.slots.full + state.slots.short ? 'short'
+    : 'reject');
 }
 
 // Abstracts that land above the bar under some aggregations and below under
@@ -306,7 +338,6 @@ function sensitivity(rows, slots) {
 // ------------------------------------------------------------------- view
 function build() {
   const n = state.abstracts.filter(a => a.track === state.track).length;
-  state.slots = Math.min(state.slots, n);
   $('wrap').innerHTML = `
     <div class="controls">
       <div class="ctl">
@@ -317,9 +348,14 @@ function build() {
         </div>
       </div>
       <div class="ctl">
-        <label>Slots available</label>
-        <div class="slots"><b id="slot-n"></b> of <span id="track-n"></span></div>
-        <input type="range" id="slots" min="1" max="${n}">
+        <label id="lab-a"></label>
+        <div class="slots"><b id="slot-a"></b> of <span id="track-n"></span></div>
+        <input type="range" id="slots-a" min="0">
+      </div>
+      <div class="ctl" id="ctl-b">
+        <label>Short slots</label>
+        <div class="slots"><b id="slot-b"></b> <span class="sub-note" id="fill-b"></span></div>
+        <input type="range" id="slots-b" min="0">
       </div>
       <div class="ctl" id="admin-ctl" hidden>
         <label>Decisions</label>
@@ -339,13 +375,16 @@ function build() {
     <div class="panels" id="panels"></div>
     <table id="tbl"></table>
     <p class="legend">
-      Rows below the bar are shaded. A tilde marks an abstract that clears the bar
-      under some aggregations and misses under others.
+      Shading follows the outcome implied by the current bars. A tilde marks an
+      abstract that changes side of the full bar depending on the aggregation
+      used.
+      <span id="dec-key"></span>
     </p>
     <h2 class="sec">Reviewer behavior</h2>
     <div class="rev" id="rev"></div>`;
 
-  $('slots').value = state.slots;
+  $('slots-a').max = n;
+  $('slots-b').max = n;
   $('track-seg').addEventListener('click', e => {
     const b = e.target.closest('[data-track]');
     if (!b) return;
@@ -357,12 +396,17 @@ function build() {
     if (!b) return;
     state.sort = b.dataset.agg; state.dir = -1; refresh();
   });
-  $('slots').addEventListener('input', e => {
-    state.slots = +e.target.value; refresh();
+  $('slots-a').addEventListener('input', e => {
+    state.slots[state.track === 'egg' ? 'egg' : 'full'] = +e.target.value; refresh();
+  });
+  $('slots-b').addEventListener('input', e => {
+    state.slots.short = +e.target.value; refresh();
   });
   if (state.isAdmin) {
     $('admin-ctl').hidden = false;
-    $('apply-bar').addEventListener('click', () => applyBar(state.sorted));
+    $('dec-key').innerHTML = '<br>Decisions: '
+      + DECISIONS.filter(x => x[0]).map(x => `<b>${x[1]}</b> ${x[2].toLowerCase()}`).join(' &middot; ');
+    $('apply-bar').addEventListener('click', () => applyBar(state.sorted, state.outcome));
     $('export').addEventListener('click', exportDecisions);
   }
   refresh();
@@ -371,8 +415,20 @@ function build() {
 function refresh() {
   state.rows = compute();
   const n = state.rows.length;
+  const egg = state.track === 'egg';
+
   $('track-n').textContent = n;
-  $('slot-n').textContent = state.slots;
+  $('lab-a').textContent = egg ? 'Egg-timer slots' : 'Full slots';
+  $('ctl-b').hidden = egg;
+
+  state.slots.full = Math.min(state.slots.full, n);
+  state.slots.egg = Math.min(state.slots.egg, n);
+  const primary = egg ? state.slots.egg : state.slots.full;
+  $('slots-a').value = primary;
+  $('slots-b').value = state.slots.short;
+  $('slot-a').textContent = primary;
+  $('slot-b').textContent = state.slots.short;
+
   document.querySelectorAll('[data-track]').forEach(b =>
     b.setAttribute('aria-pressed', b.dataset.track === state.track));
   document.querySelectorAll('[data-agg]').forEach(b =>
@@ -385,52 +441,73 @@ function refresh() {
     if (b == null) return -1;
     return (a - b) * state.dir || x.a.title.localeCompare(y.a.title);
   });
-  const flags = sensitivity(state.rows, state.slots);
-  const cut = sorted[state.slots - 1];
-  const nextUp = sorted[state.slots];
+
+  const outcome = assign(sorted);
+  const filled = outcome.filter(o => o === 'short').length;
+  const declined = sorted.filter((r, i) => outcome[i] === 'short' && !r.a.eggtimer_ok).length;
+  $('fill-b').textContent = egg ? ''
+    : filled < state.slots.short ? `only ${filled} left below the full bar`
+    : declined ? `${declined} did not ask for a shorter slot`
+    : 'all asked for a shorter slot';
+
+  const flags = sensitivity(state.rows, primary);
+  const cut = sorted[primary - 1];
+  const nextUp = sorted[primary];
 
   state.sorted = sorted;
-  renderPanels(sorted, cut, nextUp, flags);
-  renderTable(sorted, flags);
+  state.outcome = outcome;
+  renderPanels(sorted, cut, nextUp, flags, outcome);
+  renderTable(sorted, flags, outcome);
   renderReviewers();
 }
 
 function fmt(v, d = 2) { return v == null ? '\u2014' : v.toFixed(d); }
 
-function renderPanels(sorted, cut, nextUp, flags) {
+const bar = (span, label) =>
+  `<tr><td class="cutline" colspan="${span}">${label}</td></tr>`;
+
+function renderPanels(sorted, cut, nextUp, flags, outcome) {
+  const egg = state.track === 'egg';
   const scored = state.rows.filter(r => r.n > 0).length;
   const gap = cut && nextUp ? cut[state.sort] - nextUp[state.sort] : null;
   const contested = state.rows.filter(r => r.spread >= 1.2).length;
+  const lastShort = outcome.lastIndexOf('short');
+  const onProgram = outcome.filter(o => o !== 'reject').length;
+
   $('panels').innerHTML = `
-    <div class="panel"><h3>Score at the bar</h3>
+    <div class="panel"><h3>Score at the ${egg ? 'bar' : 'full bar'}</h3>
       <div class="stat">${fmt(cut?.[state.sort])}</div>
-      <p>${AGGS[state.sort].label} of the last abstract inside ${state.slots} slots.</p></div>
+      <p>${AGGS[state.sort].label} of the last abstract inside the top
+        ${egg ? state.slots.egg : state.slots.full}.</p></div>
     <div class="panel"><h3>Gap to next</h3>
       <div class="stat">${fmt(gap)}</div>
       <p>Distance from the last accepted to the first rejected. A small gap means the bar is arbitrary.</p></div>
+    ${egg ? '' : `<div class="panel"><h3>Score at the short bar</h3>
+      <div class="stat">${fmt(lastShort >= 0 ? sorted[lastShort][state.sort] : null)}</div>
+      <p>Last abstract given a short slot. The tag marks those who said they would accept one.</p></div>`}
+    <div class="panel"><h3>On the program</h3>
+      <div class="stat">${onProgram}</div>
+      <p>${egg ? 'Egg-timer slots filled.'
+              : `${outcome.filter(o => o === 'full').length} full and
+                 ${outcome.filter(o => o === 'short').length} short, of
+                 ${state.rows.length} requests.`}</p></div>
     <div class="panel"><h3>Order-sensitive</h3>
       <div class="stat">${flags.size}</div>
-      <p>Abstracts that change side of the bar depending on the aggregation used.</p></div>
+      <p>Abstracts that change side of the ${egg ? 'bar' : 'full bar'} depending on the aggregation used.</p></div>
     <div class="panel"><h3>Disagreement</h3>
       <div class="stat">${contested}</div>
       <p>Abstracts with a reviewer standard deviation of 1.2 or more.</p></div>
-    <div class="panel"><h3>Demotable</h3>
-      <div class="stat">${state.track === 'full'
-        ? sorted.slice(state.slots).filter(r => r.a.eggtimer_ok).length : '\u2014'}</div>
-      <p>${state.track === 'full'
-        ? 'Full requests below the bar that accepted an egg-timer slot instead.'
-        : 'Applies to the full track.'}</p></div>
     <div class="panel"><h3>Decisions</h3>
       <div class="stat">${['full', 'short', 'egg', 'reject']
         .map(k => state.rows.filter(r => r.a.decision === k).length).join('/')}</div>
-      <p>Full, short, egg-timer, reject in this track. Undecided:
+      <p>Full, short, egg-timer, reject recorded in this track. Undecided:
         ${state.rows.filter(r => !r.a.decision).length}.</p></div>
     <div class="panel"><h3>Coverage</h3>
       <div class="stat">${scored}/${state.rows.length}</div>
       <p>Abstracts with at least one score in this track.</p></div>`;
 }
 
-function renderTable(sorted, flags) {
+function renderTable(sorted, flags, outcome) {
   const cols = [['#', null], ['Abstract', null], ['n', 'n'],
     ...Object.entries(AGGS).map(([k, v]) => [v.label, k]), ['SD', 'spread']];
   if (state.isAdmin) cols.push(['Decision', null]);
@@ -441,32 +518,44 @@ function renderTable(sorted, flags) {
       + label + (active ? ' <span class="car">\u25BC</span>' : '') + '</th>';
   }).join('') + '</tr>';
 
+  const lastShort = outcome.lastIndexOf('short');
   const body = sorted.map((r, i) => {
+    const out = outcome[i];
     const notes = r.notes.length
-      ? `<tr class="notes ${i >= state.slots ? 'below' : ''}" data-notes="${r.a.id}" hidden>
+      ? `<tr class="notes o-${out}" data-notes="${r.a.id}" hidden>
            <td></td><td colspan="${state.isAdmin ? 9 : 8}">${r.notes.map(n =>
              `<div class="note-line"><span class="note-who">${esc(n.who)} &middot; ${n.score}</span>
               ${esc(n.text)}</div>`).join('')}</td></tr>`
       : '';
-    const row = `<tr class="${i >= state.slots ? 'below' : ''} ${i === state.slots - 1 ? 'cut' : ''} ${flags.has(r.a.id) ? 'flag' : ''} ${r.a.decision ? 'd-' + r.a.decision : ''}">
+    const row = `<tr class="o-${out} ${flags.has(r.a.id) ? 'flag' : ''} ${r.a.decision ? 'd-' + r.a.decision : ''}">
       <td>${i + 1}</td>
       <td>${esc(r.a.title)}
         ${r.a.track === 'full' && r.a.eggtimer_ok ? '<span class="egg">egg ok</span>' : ''}
         ${r.notes.length ? `<button class="note-btn" data-toggle="${r.a.id}">${r.notes.length} note${r.notes.length > 1 ? 's' : ''}</button>` : ''}
         <span class="sub">${esc(r.a.submitter)}${r.a.affiliation ? ' \u00B7 ' + esc(r.a.affiliation) : ''}${r.a.role ? ' \u00B7 ' + esc(r.a.role) : ''}
-          &nbsp;&nbsp;${esc(r.detail.join('  '))}</span></td>
+          <span class="scores-inline">${r.detail.map(x =>
+            `<span class="sc"><i>${esc(x.who)}</i>${x.score}</span>`).join('')}</span>
+        </span></td>
       <td>${r.n}</td>
       <td>${fmt(r.mean)}</td><td>${fmt(r.z)}</td><td>${fmt(r.median, 1)}</td>
       <td>${fmt(r.borda)}</td><td>${fmt(r.min, 0)}</td><td>${fmt(r.spread)}</td>
       ${state.isAdmin ? `<td><span class="dec">
-        ${[['full', 'F'], ['short', 'S'], ['egg', 'E'], ['reject', 'R'], [null, '\u2014']].map(([v, lab]) =>
-          `<button data-dec="${r.a.id}" data-val="${v ?? ''}"
+        ${DECISIONS.map(([v, lab, tip]) =>
+          `<button data-dec="${r.a.id}" data-val="${v ?? ''}" title="${tip}"
+             aria-label="${tip}"
              aria-pressed="${(r.a.decision ?? null) === v}">${lab}</button>`).join('')}
       </span></td>` : ''}
     </tr>`;
-    return (i === state.slots
-      ? `<tr><td class="cutline" colspan="${state.isAdmin ? 10 : 9}">Bar &mdash; ${state.slots} slots</td></tr>` + row
-      : row) + notes;
+    const span = state.isAdmin ? 10 : 9;
+    let lead = '';
+    if (state.track === 'egg') {
+      if (i === state.slots.egg) lead = bar(span, `Bar &mdash; ${state.slots.egg} egg-timer slots`);
+    } else {
+      if (i === state.slots.full) lead = bar(span, `Full bar &mdash; ${state.slots.full} slots`);
+      if (lastShort >= 0 && i === lastShort + 1)
+        lead += bar(span, `Short bar &mdash; ${outcome.filter(o => o === 'short').length} slots`);
+    }
+    return lead + row + notes;
   }).join('');
 
   $('tbl').innerHTML = head + body;
@@ -503,7 +592,7 @@ function exportDecisions() {
         affiliation: r.a.affiliation, role: r.a.role, coauthors: r.a.coauthors,
         n_reviews: r.n, mean: r.mean, z_mean: r.z, median: r.median,
         pctile: r.borda, min_score: r.min, sd: r.spread,
-        scores: r.detail.join('; '),
+        scores: r.detail.map(x => x.who + ' ' + x.score).join('; '),
         notes: r.notes.map(n => n.who + ': ' + n.text).join(' | '),
       });
     }
@@ -533,27 +622,17 @@ async function setDecision(id, value) {
   if (error) { a.decision = before; refresh(); alert('Not saved. ' + error.message); }
 }
 
-// First pass from the current bar. Full requests above it take a full slot.
-// Below it, anyone who accepted the fallback moves to egg, the rest are
-// rejected. In the egg track the bar simply splits accept from reject.
-// Decisions already recorded are left alone.
-async function applyBar(sorted) {
-  const updates = sorted.map((r, i) => {
-    const above = i < state.slots;
-    // Full requests above the bar take a 20-minute slot. Below it, anyone who
-    // accepted the fallback moves to a 10-minute short presentation. Egg-timer
-    // requests are Ph.D. students and stay in their own track.
-    const value = state.track === 'egg'
-      ? (above ? 'egg' : 'reject')
-      : above ? 'full' : (r.a.eggtimer_ok ? 'short' : 'reject');
-    return { id: r.a.id, decision: value };
-  }).filter(u => {
-    const a = state.abstracts.find(x => x.id === u.id);
-    return (a.decision ?? null) !== u.decision;
-  });
+// First pass from the current bars, using the same assignment shown in the
+// table. Decisions that already match are left alone.
+async function applyBar(sorted, outcome) {
+  const updates = sorted.map((r, i) => ({ id: r.a.id, decision: outcome[i] }))
+    .filter(u => {
+      const a = state.abstracts.find(x => x.id === u.id);
+      return (a.decision ?? null) !== u.decision;
+    });
 
-  if (!updates.length) return;
-  if (!confirm(`Set ${updates.length} decisions from the current bar?`)) return;
+  if (!updates.length) { alert('Decisions already match the bars.'); return; }
+  if (!confirm(`Set ${updates.length} decisions from the current bars?`)) return;
 
   for (const u of updates) {
     const { error } = await sb.from('abstracts')
