@@ -77,6 +77,10 @@ header{display:flex;align-items:center;gap:18px;padding:0 20px;height:54px;
 .track-tab+.track-tab{border-left:none}
 .track-tab[aria-selected=true]{background:var(--gold);border-color:var(--gold);
   color:var(--navy-deep);font-weight:700}
+/* mode switch, not a filter, so it stays a button rather than a tab */
+.view-btn{border-color:var(--gold);color:var(--gold)}
+/* the rail is permanent on wide screens, where this button would do nothing */
+@media (min-width:861px){ #toggle-rail{display:none} }
 .spacer{flex:1}
 .meter{font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.7);
   white-space:nowrap}
@@ -235,10 +239,7 @@ kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
       <button class="track-tab" role="tab" data-track="full" aria-selected="true">Full talks</button>
       <button class="track-tab" role="tab" data-track="egg" aria-selected="false">Egg-timers</button>
     </div>
-    <div class="tracks" role="tablist" id="view-seg">
-      <button class="track-tab" role="tab" data-view="read" aria-selected="true">Read</button>
-      <button class="track-tab" role="tab" data-view="list" aria-selected="false">My list</button>
-    </div>
+    <button class="ghost view-btn" id="view-btn">My list</button>
     <button class="ghost" id="toggle-rail">Index</button>
     <span class="spacer"></span>
     <span class="meter" id="meter"></span>
@@ -538,8 +539,7 @@ async function setScoreById(id, n) {
 
 function setView(v) {
   state.view = v;
-  document.querySelectorAll('[data-view]').forEach(b =>
-    b.setAttribute('aria-selected', b.dataset.view === v));
+  $('view-btn').textContent = v === 'read' ? 'My list' : 'Back to reading';
   render();
 }
 
@@ -673,17 +673,19 @@ document.addEventListener('keydown', e => {
 });
 
 // ---------------------------------------------------------------- tracks
-document.querySelectorAll('.track-tab').forEach(tab =>
+// Scoped to [data-track]. The view toggle shares the .track-tab class for
+// styling, and selecting on the class alone crosses the two controls.
+document.querySelectorAll('[data-track]').forEach(tab =>
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.track-tab').forEach(t =>
+    document.querySelectorAll('[data-track]').forEach(t =>
       t.setAttribute('aria-selected', t === tab));
     state.track = tab.dataset.track;
     state.cursor = 0;
     render();
   }));
 
-document.querySelectorAll('[data-view]').forEach(b =>
-  b.addEventListener('click', () => setView(b.dataset.view)));
+$('view-btn').addEventListener('click', () =>
+  setView(state.view === 'read' ? 'list' : 'read'));
 
 $('toggle-rail').addEventListener('click', () =>
   $('main').classList.toggle('rail-open'));
