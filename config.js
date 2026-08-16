@@ -4,9 +4,11 @@
 // sweeep schema. That schema must be listed under Settings -> API -> Exposed
 // schemas or every request returns an empty result.
 
-// Single bundled file rather than the esm.sh entry point, which fans out into
-// seven further requests and fails intermittently on mobile Safari.
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// Bundled locally rather than loaded from a CDN. Removes a third-party request
+// from the critical path, which was adding seconds to first load. Rebuild with:
+//   npx esbuild entry.js --bundle --format=esm --minify --outfile=supabase.js
+// where entry.js re-exports createClient from @supabase/supabase-js.
+import { createClient } from './supabase.js';
 
 export const SUPABASE_URL = 'https://ciuevdpwokgltibsahyp.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_mZehy_-aKZ1fIRF-Vw1G4Q_nYiHP2px';

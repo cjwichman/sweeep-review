@@ -11,7 +11,19 @@ This repository holds the site only.
 - `index.html` — reviewer application
 - `dashboard.html` — rankings, aggregations, acceptance bars, decisions
 - `config.js` — Supabase URL, publishable key, committee roster
+- `supabase.js` — the Supabase client, bundled locally
 - `README.md` — this file
+
+`supabase.js` is a build artifact, not hand-edited. Loading the library from a
+CDN added seconds to first load, so it is vendored instead. Rebuild only when
+upgrading the client:
+
+```
+npm install @supabase/supabase-js esbuild
+echo "export { createClient } from '@supabase/supabase-js';" > entry.js
+npx esbuild entry.js --bundle --format=esm --minify --target=es2020 \
+  --outfile=supabase.js
+```
 
 The rest of the workflow lives outside the repository, alongside the Qualtrics
 export, since the scripts contain access-control definitions and notification
