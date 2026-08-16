@@ -670,7 +670,8 @@ function renderPane() {
   if (!a) { pane.innerHTML = '<p class="empty">No abstracts in this track.</p>'; return; }
 
   const mine = state.mine.get(a.id) ?? {};
-  const peers = state.unlocked ? (state.others.get(a.id) ?? []) : [];
+  // The organizer reads notes as they arrive. Everyone else waits for the reveal.
+  const peers = (state.unlocked || state.isAdmin) ? (state.others.get(a.id) ?? []) : [];
 
   pane.innerHTML = `<div class="pane-inner">
     <div class="eyebrow">

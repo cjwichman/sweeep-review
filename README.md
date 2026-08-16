@@ -81,10 +81,8 @@ The Admin control flips the flag once scoring closes, at which point the full
 set becomes visible and the dashboard unlocks. Enforcement is in the RLS
 policies, not the client, so querying the API directly does not bypass it.
 
-Discussion comments are gated by the same flag. Reviewers can post during blind
-scoring, but nothing appears to others until the reveal. To let discussion run
-in the open from the start, change the `discussion_read` policy to
-`using (sweeep.is_reviewer())`.
+Each reviewer writes one note per abstract alongside the score. Notes follow the
+same flag as scores.
 
 ## Loading abstracts
 
@@ -115,13 +113,28 @@ Submitters requesting a slot their role is not eligible for are flagged.
 Abstracts over the word limit are listed. The count of submissions carrying a
 note to the organizers is reported.
 
+## Reading order
+
+Each reviewer sees the abstracts in a different order, so queue position is not
+a bias shared across the committee. The order is a hash of the reviewer id and
+the abstract id rather than a random draw, which means it is stable for a given
+reviewer across sessions and devices. Nothing about the order is stored.
+
+The index numbers in the sidebar are positions in that reviewer's own queue and
+do not correspond between reviewers. The dashboard is unaffected, since every
+aggregation is order-independent.
+
 ## Personal ordering
 
 The list view shows every abstract in the current track as one row, sorted by
-score until the reviewer drags something. The first drag assigns a position to
-every abstract in that track, and subsequent drags rewrite one row using the
+score until the reviewer moves something. The first move assigns a position to
+every abstract in that track, and subsequent moves rewrite one row using the
 midpoint between its new neighbours. Scores can be set inline from the list
 without opening the abstract.
+
+Rows are dragged on a desktop browser. Touch devices do not fire HTML5 drag
+events, so each row also carries up and down arrows, shown on narrow screens.
+Both paths call the same reordering code.
 
 Positions feed the Pctile column and nothing else. A reviewer with a complete
 manual order contributes a strict ranking. A reviewer who never opened the list
@@ -137,6 +150,49 @@ The separation is deliberate. Mean, Z-mean, median, and min read the 1-5 scores.
 Pctile reads positions. An abstract scored a 4 but dragged to the bottom of a
 reviewer's list will disagree across those columns and pick up the tilde flag,
 which is the case worth committee time.
+
+## Decisions and notification
+
+Four outcomes. Full is a 20-minute presentation. Short is 10 minutes, for
+faculty and post-docs. Egg-timer is 10 minutes, for Ph.D. students. The fourth
+is reject.
+
+Once scoring closes, the dashboard records the outcome. Set from bar applies the
+current slider position across the track in one pass. In the full track, anyone
+above the bar takes a full slot, and below it anyone who accepted the fallback
+moves to a short presentation while the rest are rejected. In the egg track the
+bar splits accept from reject. Decisions already recorded by hand are left alone, so
+the bulk pass can be run first and adjusted afterwards, or the other way round.
+
+Per-row buttons set full, short, egg, reject, or clear the decision. Accepted rows carry
+a coloured edge, rejected titles are struck through, and a panel counts the three
+outcomes and what remains undecided.
+
+Export CSV writes one row per abstract across both tracks, carrying the contact
+details, the requested track, the fallback flag, every aggregate, the individual
+scores, the notes, and the decision. That file is the mail merge source.
+
+`draft_notifications.R` reads it and writes one letter per recipient into a
+`notifications` directory, plus a single file containing all letters for review
+and an address list per outcome. Nothing is sent.
+
+Five templates, one per outcome plus the two rejection variants. Acceptances are
+addressed by name.
+Rejections are addressed to "colleague" and are identical within a group, so one
+blind-copied message per group covers them, which is what `_address_lists.csv`
+is for.
+
+Acceptance wording follows the outcome. Rejection wording follows the requested
+track, so a faculty submission turned down after requesting a full slot gets the
+general rejection rather than the one explaining Ph.D. student egg-timer
+competition.
+
+The short and egg-timer letters are separate because only the egg-timer track
+carries the Ph.D. student framing and the travel funding paragraph.
+
+The registration link, website, contact address, and subject line are constants
+at the top of the script and change each year. The egg-timer slot count quoted
+in the rejection is counted from the decisions rather than hardcoded.
 
 ## Keyboard
 

@@ -51,6 +51,8 @@ header{display:flex;align-items:center;gap:18px;padding:0 20px;height:54px;
 .seg button+button{border-left:none}
 .seg button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);
   color:#fff;font-weight:700}
+#apply-bar,#export{font-family:var(--sans);font-size:12.5px;padding:6px 12px}
+#apply-bar:hover,#export:hover{border-color:var(--navy);color:var(--navy)}
 input[type=range]{width:210px;accent-color:var(--gold-dark)}
 .slots{font-family:var(--mono);font-size:13px}
 .slots b{font-size:16px;color:var(--navy)}
@@ -84,6 +86,29 @@ tr.cut{box-shadow:inset 0 -2px 0 var(--navy)}
 tr.flag td:nth-child(2)::after{content:" ~";color:var(--gold-dark);font-weight:700}
 .sub{display:block;font-family:var(--sans);font-size:11.5px;color:var(--grey);
   margin-top:2px}
+.dec{display:flex;gap:2px;justify-content:flex-end}
+.dec button{width:22px;height:24px;border:1px solid var(--rule);
+  background:var(--surface);font-family:var(--mono);font-size:11px;padding:0;
+  color:var(--grey)}
+.dec button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);
+  color:#fff}
+tr.d-full td{box-shadow:inset 3px 0 0 var(--gold)}
+tr.d-short td{box-shadow:inset 3px 0 0 var(--gold-med)}
+tr.d-egg td{box-shadow:inset 3px 0 0 var(--gold-med)}
+tr.d-reject td:first-child{color:#B9BDC4}
+tr.d-reject td:nth-child(2){text-decoration:line-through;
+  text-decoration-color:var(--rule)}
+.note-btn{display:inline-block;font-family:var(--cond);font-size:10px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--grey);
+  border:1px solid var(--rule);background:var(--surface);padding:0 5px;
+  vertical-align:2px;margin-left:6px;white-space:nowrap}
+.note-btn:hover,.note-btn[aria-expanded=true]{color:var(--navy);border-color:var(--navy)}
+tr.notes td{background:var(--paper);font-family:var(--sans);text-align:left;
+  font-size:13px;padding:10px 8px 12px}
+.note-line{margin-bottom:7px;line-height:1.5;max-width:760px}
+.note-line:last-child{margin-bottom:0}
+.note-who{font-family:var(--cond);font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--gold-dark);margin-right:8px}
 .egg{display:inline-block;font-family:var(--cond);font-size:10px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--gold-dark);border:1px solid var(--gold);
   padding:0 5px;vertical-align:2px;margin-left:6px;white-space:nowrap}
@@ -124,6 +149,7 @@ const $ = id => document.getElementById(id);
 const state = {
   abstracts: [], reviews: [], names: new Map(),
   track: 'full', sort: 'z', dir: -1, slots: 20, rows: [], ordered: new Set(),
+  isAdmin: false,
 };
 
 // Aggregation definitions. Each returns a number, higher is better.
@@ -152,9 +178,9 @@ if (!session) {
   $('msg').innerHTML = 'Not signed in. <a href="index.html">Sign in on the review page</a> first.';
 } else {
   const [roster, abstracts, reviews] = await Promise.all([
-    sb.from('reviewers').select('id, display_name'),
-    sb.from('abstracts').select('id, response_id, track, title, submitter, affiliation, role, eggtimer_ok'),
-    sb.from('reviews').select('reviewer_id, abstract_id, score, position'),
+    sb.from('reviewers').select('id, display_name, is_admin'),
+    sb.from('abstracts').select('id, response_id, track, title, submitter, email, affiliation, role, coauthors, eggtimer_ok, decision'),
+    sb.from('reviews').select('reviewer_id, abstract_id, score, position, comment'),
   ]);
   const rows = (reviews.data ?? []).filter(r => r.score != null);
   const reviewerCount = new Set(rows.map(r => r.reviewer_id)).size;
@@ -163,7 +189,10 @@ if (!session) {
     $('msg').innerHTML = 'Only one reviewer\u2019s scores are readable. '
       + 'Rankings appear once the organizer reveals reviews from the Admin panel.';
   } else {
-    for (const r of roster.data ?? []) state.names.set(r.id, r.display_name);
+    for (const r of roster.data ?? []) {
+      state.names.set(r.id, r.display_name);
+      if (r.id === session.user.id) state.isAdmin = r.is_admin;
+    }
     state.abstracts = abstracts.data ?? [];
     state.reviews = rows;
     build();
@@ -251,6 +280,9 @@ function compute() {
         min:    scores.length ? Math.min(...scores) : null,
         spread: scores.length ? sd(scores) : null,
         detail: rs.map(r => (state.names.get(r.reviewer_id) ?? '?') + ' ' + r.score),
+        notes: rs.filter(r => r.comment && r.comment.trim())
+                 .map(r => ({ who: state.names.get(r.reviewer_id) ?? 'Reviewer',
+                              score: r.score, text: r.comment.trim() })),
       };
     });
 }
@@ -289,6 +321,13 @@ function build() {
         <div class="slots"><b id="slot-n"></b> of <span id="track-n"></span></div>
         <input type="range" id="slots" min="1" max="${n}">
       </div>
+      <div class="ctl" id="admin-ctl" hidden>
+        <label>Decisions</label>
+        <div class="seg">
+          <button id="apply-bar">Set from bar</button>
+          <button id="export">Export CSV</button>
+        </div>
+      </div>
       <div class="ctl">
         <label>Sort by</label>
         <div class="seg" id="agg-seg">
@@ -321,6 +360,11 @@ function build() {
   $('slots').addEventListener('input', e => {
     state.slots = +e.target.value; refresh();
   });
+  if (state.isAdmin) {
+    $('admin-ctl').hidden = false;
+    $('apply-bar').addEventListener('click', () => applyBar(state.sorted));
+    $('export').addEventListener('click', exportDecisions);
+  }
   refresh();
 }
 
@@ -345,6 +389,7 @@ function refresh() {
   const cut = sorted[state.slots - 1];
   const nextUp = sorted[state.slots];
 
+  state.sorted = sorted;
   renderPanels(sorted, cut, nextUp, flags);
   renderTable(sorted, flags);
   renderReviewers();
@@ -375,6 +420,11 @@ function renderPanels(sorted, cut, nextUp, flags) {
       <p>${state.track === 'full'
         ? 'Full requests below the bar that accepted an egg-timer slot instead.'
         : 'Applies to the full track.'}</p></div>
+    <div class="panel"><h3>Decisions</h3>
+      <div class="stat">${['full', 'short', 'egg', 'reject']
+        .map(k => state.rows.filter(r => r.a.decision === k).length).join('/')}</div>
+      <p>Full, short, egg-timer, reject in this track. Undecided:
+        ${state.rows.filter(r => !r.a.decision).length}.</p></div>
     <div class="panel"><h3>Coverage</h3>
       <div class="stat">${scored}/${state.rows.length}</div>
       <p>Abstracts with at least one score in this track.</p></div>`;
@@ -383,6 +433,7 @@ function renderPanels(sorted, cut, nextUp, flags) {
 function renderTable(sorted, flags) {
   const cols = [['#', null], ['Abstract', null], ['n', 'n'],
     ...Object.entries(AGGS).map(([k, v]) => [v.label, k]), ['SD', 'spread']];
+  if (state.isAdmin) cols.push(['Decision', null]);
 
   const head = '<tr>' + cols.map(([label, key]) => {
     const active = key === state.sort;
@@ -391,22 +442,42 @@ function renderTable(sorted, flags) {
   }).join('') + '</tr>';
 
   const body = sorted.map((r, i) => {
-    const row = `<tr class="${i >= state.slots ? 'below' : ''} ${i === state.slots - 1 ? 'cut' : ''} ${flags.has(r.a.id) ? 'flag' : ''}">
+    const notes = r.notes.length
+      ? `<tr class="notes ${i >= state.slots ? 'below' : ''}" data-notes="${r.a.id}" hidden>
+           <td></td><td colspan="${state.isAdmin ? 9 : 8}">${r.notes.map(n =>
+             `<div class="note-line"><span class="note-who">${esc(n.who)} &middot; ${n.score}</span>
+              ${esc(n.text)}</div>`).join('')}</td></tr>`
+      : '';
+    const row = `<tr class="${i >= state.slots ? 'below' : ''} ${i === state.slots - 1 ? 'cut' : ''} ${flags.has(r.a.id) ? 'flag' : ''} ${r.a.decision ? 'd-' + r.a.decision : ''}">
       <td>${i + 1}</td>
       <td>${esc(r.a.title)}
         ${r.a.track === 'full' && r.a.eggtimer_ok ? '<span class="egg">egg ok</span>' : ''}
+        ${r.notes.length ? `<button class="note-btn" data-toggle="${r.a.id}">${r.notes.length} note${r.notes.length > 1 ? 's' : ''}</button>` : ''}
         <span class="sub">${esc(r.a.submitter)}${r.a.affiliation ? ' \u00B7 ' + esc(r.a.affiliation) : ''}${r.a.role ? ' \u00B7 ' + esc(r.a.role) : ''}
           &nbsp;&nbsp;${esc(r.detail.join('  '))}</span></td>
       <td>${r.n}</td>
       <td>${fmt(r.mean)}</td><td>${fmt(r.z)}</td><td>${fmt(r.median, 1)}</td>
       <td>${fmt(r.borda)}</td><td>${fmt(r.min, 0)}</td><td>${fmt(r.spread)}</td>
+      ${state.isAdmin ? `<td><span class="dec">
+        ${[['full', 'F'], ['short', 'S'], ['egg', 'E'], ['reject', 'R'], [null, '\u2014']].map(([v, lab]) =>
+          `<button data-dec="${r.a.id}" data-val="${v ?? ''}"
+             aria-pressed="${(r.a.decision ?? null) === v}">${lab}</button>`).join('')}
+      </span></td>` : ''}
     </tr>`;
-    return i === state.slots
-      ? `<tr><td class="cutline" colspan="9">Bar &mdash; ${state.slots} slots</td></tr>` + row
-      : row;
+    return (i === state.slots
+      ? `<tr><td class="cutline" colspan="${state.isAdmin ? 10 : 9}">Bar &mdash; ${state.slots} slots</td></tr>` + row
+      : row) + notes;
   }).join('');
 
   $('tbl').innerHTML = head + body;
+  $('tbl').querySelectorAll('[data-dec]').forEach(b =>
+    b.addEventListener('click', () => setDecision(+b.dataset.dec, b.dataset.val || null)));
+  $('tbl').querySelectorAll('[data-toggle]').forEach(b =>
+    b.addEventListener('click', () => {
+      const t = $('tbl').querySelector(`[data-notes="${b.dataset.toggle}"]`);
+      t.hidden = !t.hidden;
+      b.setAttribute('aria-expanded', String(!t.hidden));
+    }));
   $('tbl').querySelectorAll('th[data-key]').forEach(th =>
     th.addEventListener('click', () => {
       const k = th.dataset.key;
@@ -414,6 +485,83 @@ function renderTable(sorted, flags) {
       state.sort = k;
       refresh();
     }));
+}
+
+// One row per abstract, across both tracks, carrying contact details, the
+// aggregates, and the recorded decision. This is the mail merge source.
+function exportDecisions() {
+  const rstat = reviewerStats();
+  const saved = state.track;
+  const rows = [];
+  for (const tk of ['full', 'egg']) {
+    state.track = tk;
+    for (const r of compute()) {
+      rows.push({
+        response_id: r.a.response_id, decision: r.a.decision ?? '',
+        track_requested: r.a.track, eggtimer_ok: r.a.eggtimer_ok ? 'yes' : 'no',
+        title: r.a.title, submitter: r.a.submitter, email: r.a.email,
+        affiliation: r.a.affiliation, role: r.a.role, coauthors: r.a.coauthors,
+        n_reviews: r.n, mean: r.mean, z_mean: r.z, median: r.median,
+        pctile: r.borda, min_score: r.min, sd: r.spread,
+        scores: r.detail.join('; '),
+        notes: r.notes.map(n => n.who + ': ' + n.text).join(' | '),
+      });
+    }
+  }
+  state.track = saved;
+
+  const cols = Object.keys(rows[0]);
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const csv = [cols.join(',')]
+    .concat(rows.map(r => cols.map(c =>
+      q(typeof r[c] === 'number' ? Number(r[c].toFixed(4)) : r[c])).join(',')))
+    .join('\n');
+
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = 'sweeep_decisions.csv'; link.click();
+  URL.revokeObjectURL(url);
+}
+
+// ------------------------------------------------------------- decisions
+async function setDecision(id, value) {
+  const a = state.abstracts.find(x => x.id === id);
+  const before = a.decision ?? null;
+  a.decision = value;
+  refresh();
+  const { error } = await sb.from('abstracts').update({ decision: value }).eq('id', id);
+  if (error) { a.decision = before; refresh(); alert('Not saved. ' + error.message); }
+}
+
+// First pass from the current bar. Full requests above it take a full slot.
+// Below it, anyone who accepted the fallback moves to egg, the rest are
+// rejected. In the egg track the bar simply splits accept from reject.
+// Decisions already recorded are left alone.
+async function applyBar(sorted) {
+  const updates = sorted.map((r, i) => {
+    const above = i < state.slots;
+    // Full requests above the bar take a 20-minute slot. Below it, anyone who
+    // accepted the fallback moves to a 10-minute short presentation. Egg-timer
+    // requests are Ph.D. students and stay in their own track.
+    const value = state.track === 'egg'
+      ? (above ? 'egg' : 'reject')
+      : above ? 'full' : (r.a.eggtimer_ok ? 'short' : 'reject');
+    return { id: r.a.id, decision: value };
+  }).filter(u => {
+    const a = state.abstracts.find(x => x.id === u.id);
+    return (a.decision ?? null) !== u.decision;
+  });
+
+  if (!updates.length) return;
+  if (!confirm(`Set ${updates.length} decisions from the current bar?`)) return;
+
+  for (const u of updates) {
+    const { error } = await sb.from('abstracts')
+      .update({ decision: u.decision }).eq('id', u.id);
+    if (error) { alert('Not saved. ' + error.message); break; }
+    state.abstracts.find(x => x.id === u.id).decision = u.decision;
+  }
+  refresh();
 }
 
 function renderReviewers() {
