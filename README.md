@@ -152,6 +152,12 @@ and always fetched. After rendering, the abstracts are refetched in the
 background and the cache is replaced if anything changed, so a correction or a
 late addition appears on the next visit without anyone clearing storage.
 
+Which view to render is decided from stored state rather than from the network.
+Waiting on `getSession()` put every navigation behind an auth round trip. The
+client also bypasses the default cross-tab auth lock, which otherwise makes one
+tab wait on the other whenever the reviewer page and the dashboard are open at
+the same time.
+
 Web fonts load with `media="print"` and switch to `all` on load. A pending
 stylesheet blocks script execution, which otherwise put the whole application
 behind a font request. The Supabase client is bundled into `supabase.js` for the

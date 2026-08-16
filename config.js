@@ -13,6 +13,14 @@ import { createClient } from './supabase.js';
 export const SUPABASE_URL = 'https://ciuevdpwokgltibsahyp.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_mZehy_-aKZ1fIRF-Vw1G4Q_nYiHP2px';
 
+export const STORAGE_KEY = 'sweeep-review-session';
+
+// Whether a session exists can be answered from storage without waiting on the
+// network, which is what lets each page decide immediately what to render.
+export const hasStoredSession = () => {
+  try { return Boolean(localStorage.getItem(STORAGE_KEY)); } catch { return false; }
+};
+
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   db: { schema: 'sweeep' },
   // Keeps the session in browser storage and refreshes it in the background, so
@@ -20,7 +28,12 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storageKey: 'sweeep-review-session',
+    storageKey: STORAGE_KEY,
+    // Default behaviour serializes auth calls across tabs with a browser lock.
+    // With the reviewer page and the dashboard open at once, one tab waits on
+    // the other, which showed up as a multi-second stall on every navigation.
+    // Nothing here writes auth state concurrently, so the lock is bypassed.
+    lock: async (_name, _timeout, fn) => await fn(),
   },
 });
 
