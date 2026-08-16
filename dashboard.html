@@ -28,8 +28,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 header{display:flex;align-items:center;gap:14px;padding:0 16px;height:54px;
   background:var(--navy);border-bottom:3px solid var(--gold);color:#fff;
-  min-width:0;overflow:hidden}
+  min-width:0;position:relative;z-index:50}
+/* No overflow clipping here. The dropdown is positioned against this element,
+   so hiding overflow would cut it off. Width is kept in check by letting the
+   flexible items shrink instead. */
 header>*{flex:0 0 auto;min-width:0}
+.meter,.whoami{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
 .brand{font-family:var(--cond);font-weight:700;letter-spacing:.05em;font-size:15px}
 .brand span{color:var(--gold)}
 .spacer{flex:1}
