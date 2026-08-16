@@ -263,6 +263,24 @@ kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
 
 <div id="boot">Loading</div>
 
+<script>
+// Classic script, so it runs even if the module below fails to load. If the
+// session check has not finished in a few seconds, fall back to the sign-in
+// card rather than leaving the page on the loading state indefinitely.
+setTimeout(function () {
+  var boot = document.getElementById('boot');
+  if (!boot) return;
+  boot.remove();
+  var gate = document.getElementById('gate');
+  if (gate && !document.getElementById('app').classList.contains('on')) {
+    gate.hidden = false;
+    var note = document.getElementById('gate-note');
+    note.className = 'note err';
+    note.textContent = 'Slow connection. Sign in below, or reload the page.';
+  }
+}, 5000);
+</script>
+
 <div class="gate" id="gate" hidden>
   <div class="gate-card">
     <div class="mark">SWEEEP 2026 &middot; Georgia Tech</div>
