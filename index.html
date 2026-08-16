@@ -38,6 +38,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* ---------------------------------------------------------------- sign in */
 .gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.gate[hidden]{display:none}
+/* Sign-in stays hidden until the stored session has been checked, so a slow
+   module load does not prompt someone who is already signed in. */
+#boot{min-height:100dvh;display:grid;place-items:center;color:var(--grey);
+  font-family:var(--mono);font-size:12px}
 .gate-card{width:100%;max-width:400px;background:var(--surface);
   border:1px solid var(--rule);border-top:4px solid var(--gold);padding:34px}
 .mark{font-family:var(--cond);font-weight:700;letter-spacing:.06em;
@@ -256,7 +261,9 @@ kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--rule);
 </head>
 <body>
 
-<div class="gate" id="gate">
+<div id="boot">Loading</div>
+
+<div class="gate" id="gate" hidden>
   <div class="gate-card">
     <div class="mark">SWEEEP 2026 &middot; Georgia Tech</div>
     <h1>Abstract review</h1>
@@ -389,7 +396,8 @@ sb.auth.onAuthStateChange((_e, session) => {
 });
 
 const { data: { session } } = await sb.auth.getSession();
-if (session) start(session);
+$('boot').remove();
+if (session) start(session); else $('gate').hidden = false;
 
 // ---------------------------------------------------------------- load
 let booted = false;
@@ -397,7 +405,8 @@ async function start(session) {
   if (booted) return;
   booted = true;
   state.me = session.user.id;
-  $('gate').style.display = 'none';
+  $('gate').hidden = true;
+  $('boot')?.remove();
 
   $('app').classList.add('on');
 
