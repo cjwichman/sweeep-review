@@ -143,6 +143,23 @@ Submitters requesting a slot their role is not eligible for are flagged.
 Abstracts over the word limit are listed. The count of submissions carrying a
 note to the organizers is reported.
 
+## Loading
+
+Abstract text is the bulk of the payload, so the reviewer application caches the
+abstracts in browser storage under `sweeep-abstracts-v1` and reads from there on
+every load after the first. Scores, the roster, and the reveal flag are small
+and always fetched. After rendering, the abstracts are refetched in the
+background and the cache is replaced if anything changed, so a correction or a
+late addition appears on the next visit without anyone clearing storage.
+
+Web fonts load with `media="print"` and switch to `all` on load. A pending
+stylesheet blocks script execution, which otherwise put the whole application
+behind a font request. The Supabase client is bundled into `supabase.js` for the
+same reason.
+
+The dashboard requests only the columns it displays, which excludes the abstract
+bodies entirely.
+
 ## Reading order
 
 Each reviewer sees the abstracts in a different order, so queue position is not

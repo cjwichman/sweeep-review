@@ -5,17 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>SWEEEP 2026 — Rankings</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Loaded without blocking. A pending stylesheet holds up script
+     execution, which put the whole application behind the font request. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap"></noscript>
 <style>
 :root{
   --navy:#003057; --navy-deep:#002233; --gold:#B3A369; --gold-med:#A4925A;
   --gold-dark:#857437; --paper:#F9F6E5; --rule:#D6DBD4; --grey:#54585A;
   --surface:#FFFFFF; --warm:#8E8B76;
-  --sans:"Roboto",system-ui,sans-serif;
+  --sans:"Roboto",system-ui,-apple-system,"Segoe UI",Helvetica,sans-serif;
   --cond:"Roboto Condensed",var(--sans);
-  --serif:"Newsreader",Georgia,serif;
+  --serif:"Newsreader",Charter,Georgia,"Times New Roman",serif;
   --mono:"IBM Plex Mono",ui-monospace,monospace;
 }
 *{box-sizing:border-box}
@@ -194,9 +196,13 @@ const { data: { session } } = await sb.auth.getSession();
 if (!session) {
   $('msg').innerHTML = 'Not signed in. <a href="index.html">Sign in on the review page</a> first.';
 } else {
+  // Only the columns the dashboard uses. Abstract bodies are the bulk of the
+  // table and are never displayed here.
+  const cols = 'id, response_id, track, title, submitter, email, affiliation,'
+             + ' role, coauthors, eggtimer_ok, decision';
   const [roster, abstracts, reviews] = await Promise.all([
     sb.from('reviewers').select('id, display_name, is_admin'),
-    sb.from('abstracts').select('id, response_id, track, title, submitter, email, affiliation, role, coauthors, eggtimer_ok, decision'),
+    sb.from('abstracts').select(cols),
     sb.from('reviews').select('reviewer_id, abstract_id, score, position, comment'),
   ]);
   const rows = (reviews.data ?? []).filter(r => r.score != null);

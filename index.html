@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>SWEEEP 2026 — Abstract review</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Loaded without blocking. A pending stylesheet holds up script
+     execution, which put the whole application behind the font request. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Roboto+Condensed:wght@400;700&family=Roboto:wght@400;500;700&display=swap"></noscript>
 <style>
 :root{
   /* Georgia Tech primary and tertiary palette */
@@ -21,9 +23,9 @@
   --grey:#54585A;       /* Grey Matter */
   --surface:#FFFFFF;
   --warn:#8E8B76;
-  --sans:"Roboto",system-ui,sans-serif;
+  --sans:"Roboto",system-ui,-apple-system,"Segoe UI",Helvetica,sans-serif;
   --cond:"Roboto Condensed",var(--sans);
-  --serif:"Newsreader",Georgia,serif;
+  --serif:"Newsreader",Charter,Georgia,"Times New Roman",serif;
   --mono:"IBM Plex Mono",ui-monospace,monospace;
 }
 *{box-sizing:border-box}
@@ -429,6 +431,33 @@ try {
   $('gate-note').textContent = 'Could not reach the server. ' + err.message;
 }
 
+// --------------------------------------------------------------- caching
+// Bumped when the shape of the cached rows changes.
+const CACHE_KEY = 'sweeep-abstracts-v1';
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    const rows = raw ? JSON.parse(raw) : null;
+    return Array.isArray(rows) && rows.length ? rows : null;
+  } catch { return null; }
+}
+
+function writeCache(rows) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)); } catch { /* full */ }
+}
+
+async function revalidate() {
+  const { data, error } = await sb.from('abstracts').select('*')
+    .order('track').order('id');
+  if (error || !data?.length) return;
+  if (JSON.stringify(data) === JSON.stringify(state.abstracts)) return;
+  state.abstracts = data;
+  state.shuffled.clear();
+  writeCache(data);
+  render();
+}
+
 // ---------------------------------------------------------------- load
 let booted = false;
 async function start(session) {
@@ -439,19 +468,30 @@ async function start(session) {
   $('boot')?.remove();
   $('app').classList.add('on');
 
-  const [roster, settings, abstracts, reviews] = await Promise.all([
+  // Abstracts are fixed once loaded, so they come from local storage on every
+  // navigation after the first. Everything else is small and always fetched.
+  const cached = readCache();
+  if (cached) state.abstracts = cached;
+
+  const wanted = [
     sb.from('reviewers').select('id, display_name, is_admin'),
     sb.from('app_settings').select('reviews_visible').eq('id', 1).maybeSingle(),
-    sb.from('abstracts').select('*').order('track').order('id'),
     sb.from('reviews').select('*'),
-  ]);
+  ];
+  if (!cached) wanted.push(sb.from('abstracts').select('*').order('track').order('id'));
 
-  if (abstracts.error || !(abstracts.data ?? []).length) {
-    $('pane').innerHTML = '<p class="empty">No abstracts available. '
-      + (abstracts.error ? esc(abstracts.error.message)
+  const [roster, settings, reviews, fetched] = await Promise.all(wanted);
+
+  if (!cached) {
+    if (fetched.error || !(fetched.data ?? []).length) {
+      $('pane').innerHTML = '<p class="empty">No abstracts available. '
+        + (fetched.error ? esc(fetched.error.message)
                          : 'This account may not be on the committee roster yet.')
-      + '</p>';
-    return;
+        + '</p>';
+      return;
+    }
+    state.abstracts = fetched.data;
+    writeCache(fetched.data);
   }
 
   for (const r of roster.data ?? []) {
@@ -459,7 +499,6 @@ async function start(session) {
     if (r.id === state.me) state.isAdmin = r.is_admin;
   }
   state.unlocked = settings.data?.reviews_visible ?? false;
-  state.abstracts = abstracts.data;
 
   for (const r of reviews.data ?? []) {
     if (r.reviewer_id === state.me) state.mine.set(r.abstract_id, r);
@@ -478,6 +517,10 @@ async function start(session) {
   if (state.isAdmin) { $('admin-open').hidden = false; $('dash-link').hidden = false; }
   else if (state.unlocked) $('dash-link').hidden = false;
   render();
+
+  // Revalidate in the background. A corrected abstract or a late addition shows
+  // up on the next visit without anyone clearing anything.
+  if (cached) revalidate();
 }
 
 // -------------------------------------------------------------- rendering
