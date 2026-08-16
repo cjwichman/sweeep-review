@@ -1,41 +1,59 @@
 # Abstract review
 
 Conference abstract review for a small program committee. Static frontend on
-GitHub Pages, Postgres and auth on Supabase. Submission text and reviewer scores
-live in the database and never enter the repository.
+GitHub Pages, Postgres and auth on Supabase. Submission text, reviewer scores,
+and notes live in the database and never enter this repository.
 
 ## Files
 
-- `config.js` — Supabase URL, anon key, shared client pinned to the `sweeep` schema
-- `schema.sql` — tables, row-level security, helper functions
+This repository holds the site only.
+
 - `index.html` — reviewer application
-- `dashboard.html` — rankings, aggregations, acceptance bar
+- `dashboard.html` — rankings, aggregations, acceptance bars, decisions
+- `config.js` — Supabase URL, publishable key, committee roster
+- `README.md` — this file
+
+The rest of the workflow lives outside the repository, alongside the Qualtrics
+export, since the scripts contain access-control definitions and notification
+wording that submitters should not read before decisions go out.
+
+- `schema.sql` — tables, row-level security, helper functions
 - `load_abstracts.R` — Qualtrics export to Supabase
+- `simulate_reviews.R` — synthetic scores for testing the dashboard
+- `draft_notifications.R` — decision export to notification letters
+
+Nothing in the repository is secret. The publishable key in `config.js` is
+public by design, and row-level security is what protects the data. Keeping the
+schema out is a matter of not publishing a map of the access rules, not a
+dependency of the security model.
 
 ## Shared project
 
-The Supabase project also hosts amend.city. Two consequences:
+The Supabase project also hosts other applications. Two consequences:
 
 1. Every object lives in the `sweeep` schema. Nothing is created in `public`.
    The schema must be listed under Settings → API → Exposed schemas, and the
    client sets `db: { schema: 'sweeep' }`. Requests return empty otherwise.
 2. `auth.users` is shared across applications. Authentication grants nothing on
-   its own. Every policy tests membership in `sweeep.reviewers`, and a row is
-   created only by `sweeep.claim_seat()`, which checks the signed-in address
-   against `sweeep.invitees`. An amend.city account cannot self-provision.
+   its own. Every policy tests membership in `sweeep.reviewers`, and rows there
+   are created by hand. An account belonging to another application cannot
+   reach this data.
 
 ## Setup
 
 1. Run `schema.sql` in the SQL editor.
-2. Authentication → URL Configuration → add the Pages URL to the redirect allow
-   list.
-3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `config.js`. The anon key is
-   public by design. Row-level security is what protects the data.
-4. Create six accounts under Authentication -> Users -> Add user, one per login
-   address in `config.js`, all sharing one password, with Auto Confirm User on.
-   Then run the reviewer insert at the bottom of `schema.sql`, and turn off
-   public signups under Authentication -> Sign In / Providers.
-5. Push to a repo, enable Pages, distribute the URL.
+2. Settings → API → Exposed schemas → add `sweeep`, keeping `public` selected.
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `config.js` from
+   Settings → API.
+4. Create one account per reviewer under Authentication → Users → Add user,
+   using the addresses in the `REVIEWERS` roster in `config.js`, all sharing one
+   password, with Auto Confirm User on. Then insert the matching rows into
+   `sweeep.reviewers` using the statement at the bottom of `schema.sql`, and
+   turn off public signups under Authentication → Sign In / Providers.
+5. Push the site files, enable Pages, and add the resulting URL to
+   Authentication → URL Configuration → Redirect URLs. Leave Site URL alone if
+   another application on the project is using it.
+6. Load the abstracts with `load_abstracts.R`.
 
 ## Verify before distributing
 
