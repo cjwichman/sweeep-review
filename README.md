@@ -9,7 +9,7 @@ and notes live in the database and never enter this repository.
 This repository holds the site only.
 
 - `index.html` — reviewer application
-- `dashboard.html` — rankings, aggregations, acceptance bars, decisions
+- `dashboard.html` — rankings, aggregations, program bars, decisions
 - `config.js` — Supabase URL, publishable key, committee roster
 - `supabase.js` — the Supabase client, bundled locally
 - `README.md` — this file
@@ -105,14 +105,18 @@ appear and no abstract text should be visible anywhere on the page.
 
 ## Blind review and the reveal
 
-`sweeep.app_settings.reviews_visible` is false by default. While false, each
-reviewer sees only their own scores, private notes, and discussion comments.
-The Admin control flips the flag once scoring closes, at which point the full
-set becomes visible and the dashboard unlocks. Enforcement is in the RLS
-policies, not the client, so querying the API directly does not bypass it.
+Each reviewer writes one optional note per abstract alongside the score.
 
-Each reviewer writes one note per abstract alongside the score. Notes follow the
-same flag as scores.
+`sweeep.app_settings.reviews_visible` is false by default. While false, each
+reviewer sees only their own scores and notes. The organizer sees everything
+throughout, which is the point of collecting the notes. The Admin control flips
+the flag once scoring closes, at which point every reviewer sees the full set
+and the dashboard opens to the committee. Enforcement is in the RLS policies,
+not the client, so querying the API directly does not bypass it.
+
+Flipping the flag reveals the notes as well as the scores, which is worth
+remembering, since they were written when only the organizer was expected to
+read them.
 
 ## Loading abstracts
 
@@ -130,13 +134,12 @@ cleaning steps run before upload:
 Track comes from the submitter's own selection, not from role and not from a
 separate screen. Anyone requesting a full presentation lands in the full track.
 
-The form also asks whether a full-talk submitter would accept a short slot
-instead. That answer drives the demotion path, since the short-talk program is
-assembled by hand after the full bar is set, drawing from the short-talk list
-and from full requests that fell below the bar. Three places surface the flag: a
-tag under the byline in the review pane, a marker in the list view, and a marker
-plus a Demotable count on the dashboard, which reports how many below-the-bar
-full requests accepted a demotion at the current bar.
+The form also asks whether a full-talk submitter would accept a shorter slot.
+That answer is recorded but not enforced, since offers to people who declined it
+have been accepted often enough in past years. Three places surface it: a tag
+under the byline in the review pane, a marker in the list view, and a marker on
+the dashboard alongside a readout of how many short offers go to people who did
+not ask for one.
 
 The script prints three checks before uploading, none of which block the load.
 Submitters requesting a slot their role is not eligible for are flagged.
@@ -200,7 +203,7 @@ Nothing needs finalizing. Positions are written as they change, and revealing
 reviews is what freezes the inputs.
 
 The separation is deliberate. Mean, Z-mean, median, and min read the 1-5 scores.
-Pctile reads positions. An abstract scored a 4 but dragged to the bottom of a
+Pctile reads positions. An abstract scored a 4 but moved to the bottom of a
 reviewer's list will disagree across those columns and pick up the tilde flag,
 which is the case worth committee time.
 
@@ -222,13 +225,13 @@ filled by rank, and the readout under the short bar reports how many of those
 offers go to people who did not ask for one. The tag on each row shows who did.
 
 Shading and the two cut lines in the table follow the outcome the bars imply.
-Set from bar writes exactly that assignment, leaving decisions that already match
-alone. Decisions already recorded by hand are left alone, so
-the bulk pass can be run first and adjusted afterwards, or the other way round.
+Set from bar writes exactly that assignment and skips anything that already
+matches, so the bulk pass can be run first and adjusted afterwards, or the other
+way round.
 
-Per-row buttons set full, short, egg, reject, or clear the decision. Accepted rows carry
-a coloured edge, rejected titles are struck through, and a panel counts the three
-outcomes and what remains undecided.
+Per-row buttons set full, short, egg, reject, or clear the decision. Accepted
+rows carry a coloured edge, rejected titles are struck through, and a panel
+counts the four outcomes and what remains undecided.
 
 Export CSV writes one row per abstract across both tracks, carrying the contact
 details, the requested track, the fallback flag, every aggregate, the individual
@@ -258,7 +261,10 @@ in the rejection is counted from the decisions rather than hardcoded.
 
 ## Keyboard
 
-- `j` / `k` or arrows — next, previous
+Desktop only. The in-app instructions mention the arrow keys and nothing else,
+since most reviewers will not use the rest.
+
+- arrows, or `j` / `k` — next, previous
 - `1`–`5` — score, pressing the current score clears it
-- `c` — jump to the private note
+- `c` — jump to the note
 - `Esc` — leave a text box

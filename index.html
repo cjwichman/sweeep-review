@@ -22,7 +22,6 @@
   --rule:#D6DBD4;       /* Diploma */
   --grey:#54585A;       /* Grey Matter */
   --surface:#FFFFFF;
-  --warn:#8E8B76;
   --sans:"Roboto",system-ui,-apple-system,"Segoe UI",Helvetica,sans-serif;
   --cond:"Roboto Condensed",var(--sans);
   --serif:"Newsreader",Charter,Georgia,"Times New Roman",serif;
@@ -390,7 +389,11 @@ $('peek').addEventListener('click', () => {
 $('send').addEventListener('click', signIn);
 $('key').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
 $('signout').addEventListener('click', async () => {
-  await sb.auth.signOut(); window.location.reload();
+  // Clear the cached abstracts too, so a shared machine does not leave
+  // submissions readable to whoever signs in next.
+  try { localStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
+  await sb.auth.signOut();
+  window.location.reload();
 });
 
 // What to show is decided from stored state, not from the network. Waiting on
