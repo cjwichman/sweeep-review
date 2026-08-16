@@ -391,13 +391,25 @@ $('signout').addEventListener('click', async () => {
   await sb.auth.signOut(); window.location.reload();
 });
 
+// getSession and the INITIAL_SESSION event race each other, so both paths run
+// through here and every step is written to tolerate having already happened.
+function showGate() {
+  $('boot')?.remove();
+  if (!booted) $('gate').hidden = false;
+}
+
 sb.auth.onAuthStateChange((_e, session) => {
-  if (session) start(session);
+  if (session) start(session); else showGate();
 });
 
-const { data: { session } } = await sb.auth.getSession();
-$('boot').remove();
-if (session) start(session); else $('gate').hidden = false;
+try {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) start(session); else showGate();
+} catch (err) {
+  showGate();
+  $('gate-note').className = 'note err';
+  $('gate-note').textContent = 'Could not reach the server. ' + err.message;
+}
 
 // ---------------------------------------------------------------- load
 let booted = false;
@@ -407,7 +419,6 @@ async function start(session) {
   state.me = session.user.id;
   $('gate').hidden = true;
   $('boot')?.remove();
-
   $('app').classList.add('on');
 
   const [roster, settings, abstracts, reviews] = await Promise.all([
@@ -419,7 +430,9 @@ async function start(session) {
 
   if (abstracts.error || !(abstracts.data ?? []).length) {
     $('pane').innerHTML = '<p class="empty">No abstracts available. '
-      + 'This account may not be on the committee roster yet.</p>';
+      + (abstracts.error ? esc(abstracts.error.message)
+                         : 'This account may not be on the committee roster yet.')
+      + '</p>';
     return;
   }
 
