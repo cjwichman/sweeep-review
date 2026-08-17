@@ -208,6 +208,11 @@ textarea:focus{border-color:var(--navy);outline:none}
 .list-head h2{font-family:var(--cond);font-size:13px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--grey);font-weight:700;margin:0}
 .list-head p{margin:0;font-size:12.5px;color:var(--grey)}
+.list-head{align-items:baseline}
+.resort{margin-left:auto;border:1px solid var(--rule);background:var(--surface);
+  font-family:var(--cond);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--grey);padding:4px 10px;white-space:nowrap}
+.resort:hover{color:var(--navy);border-color:var(--navy)}
 .list{max-width:860px;margin:0 auto;background:var(--surface);
   border:1px solid var(--rule)}
 .li{display:grid;grid-template-columns:26px 30px minmax(0,1fr) auto;gap:10px;
@@ -249,6 +254,7 @@ textarea:focus{border-color:var(--navy);outline:none}
   display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .peek-foot .scores{margin-bottom:0}
 .peek-foot .field-label{margin-bottom:0}
+#peek-note{min-height:90px}
 .li.unscored{background:#FCFBF4}
 .li.unscored .li-t{color:var(--grey)}
 
@@ -636,6 +642,7 @@ function renderList() {
     <div class="list-head">
       <h2>My list &middot; ${TRACK_LABEL[state.track]}</h2>
       <p>Optional: ${touch ? 'Use the arrows to' : 'Drag abstracts to'} reorder and break ties.</p>
+      <button class="resort" id="resort">Sort by score</button>
     </div>
     <div class="list" id="list">
       ${rows.map((r, i) => `
@@ -650,7 +657,8 @@ function renderList() {
           <span class="li-t">
             <span data-open="${r.a.id}">${esc(r.a.title)}</span>
             <button class="li-peek" data-peek="${r.a.id}"
-                    aria-label="Read abstract">Read</button>
+                    aria-label="Read abstract">Read${
+              r.r.comment && r.r.comment.trim() ? ' &middot; note' : ''}</button>
             <b>${esc(r.a.submitter)}</b></span>
           <span class="mini">
             ${[1, 2, 3, 4, 5].map(n =>
@@ -673,8 +681,20 @@ function renderList() {
     b.addEventListener('click', () => nudge(+b.dataset.up, -1)));
   $('pane').querySelectorAll('[data-down]').forEach(b =>
     b.addEventListener('click', () => nudge(+b.dataset.down, +1)));
+  $('resort').addEventListener('click', resort);
   wireDrag();
   $('pane').scrollTop = 0;
+}
+
+// A manual order is frozen once set, so a score changed afterwards does not
+// move its row. This rebuilds the order from the current scores, keeping the
+// existing sequence within each score as the tiebreak.
+async function resort() {
+  const rows = ordered()
+    .map((r, i) => ({ ...r, seq: i }))
+    .sort((x, y) => (y.r.score ?? -1) - (x.r.score ?? -1) || x.seq - y.seq);
+  await seedPositions(rows);
+  renderList();
 }
 
 // Touch devices do not fire HTML5 drag events, so each row also carries a pair
@@ -709,7 +729,10 @@ function showAbstract(id) {
       <span class="scores">${[1, 2, 3, 4, 5].map(n =>
         `<button class="score" data-pset="${a.id}" data-n="${n}"
            aria-pressed="${mine.score === n}">${n}</button>`).join('')}</span>
-    </div>`;
+    </div>
+    <div class="field-label" style="margin-top:20px">Optional notes for discussion</div>
+    <textarea id="peek-note" data-pnote="${a.id}">${esc(mine.comment)}</textarea>
+    <div class="save-state" id="peek-save"></div>`;
   $('peek-abs-body').querySelectorAll('[data-pset]').forEach(b =>
     b.addEventListener('click', async () => {
       await setScoreById(+b.dataset.pset, +b.dataset.n);
@@ -717,6 +740,23 @@ function showAbstract(id) {
       $('peek-abs-body').querySelectorAll('[data-pset]').forEach(x =>
         x.setAttribute('aria-pressed', +x.dataset.n === now));
     }));
+  // Notes are editable here too, since a note written while ranking is usually
+  // about the ranking.
+  let timer;
+  $('peek-note').addEventListener('input', () => {
+    clearTimeout(timer);
+    $('peek-save').textContent = 'Editing';
+    timer = setTimeout(async () => {
+      const prev = state.mine.get(id) ?? {};
+      const row = { reviewer_id: state.me, abstract_id: id,
+                    score: prev.score ?? null, position: prev.position ?? null,
+                    comment: $('peek-note').value };
+      state.mine.set(id, row);
+      const { error } = await sb.from('reviews').upsert(row);
+      $('peek-save').textContent = error ? 'Not saved. ' + error.message : 'Saved';
+    }, 700);
+  });
+
   $('peek-abs').showModal();
   $('peek-abs').scrollTop = 0;
 }
